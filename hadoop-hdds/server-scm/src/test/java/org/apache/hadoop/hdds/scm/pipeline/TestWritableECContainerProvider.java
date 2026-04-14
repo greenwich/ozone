@@ -146,6 +146,17 @@ public class TestWritableECContainerProvider {
     }).when(containerManager).getMatchingContainer(anyLong(),
         anyString(), any(Pipeline.class));
 
+    doAnswer(call -> {
+      Pipeline pipeline = (Pipeline) call.getArguments()[2];
+      ContainerInfo container = createContainer(pipeline,
+          repConfig, System.nanoTime());
+      pipelineManager.addContainerToPipeline(
+          pipeline.getId(), container.containerID());
+      containers.put(container.containerID(), container);
+      return container;
+    }).when(containerManager).getMatchingContainer(anyLong(),
+        anyString(), any(Pipeline.class), any(), any());
+
     doAnswer(call ->
         containers.get((ContainerID)call.getArguments()[0]))
         .when(containerManager).getContainer(any(ContainerID.class));
