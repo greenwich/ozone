@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -73,8 +74,10 @@ public final class NodeUtils {
       Set<StorageType> uniqueStorageTypes = new HashSet<>();
       DatanodeInfo datanodeInfo = nodeManager.getDatanodeInfo(dn);
       if (datanodeInfo == null) {
-        throw new IllegalStateException(
-            "Cannot get Datanode : " + dn.getUuidString() + " Info");
+        // Node not registered in NodeManager (e.g. read-only pipeline);
+        // default to DISK
+        dnStorageTypes.add(Collections.singleton(StorageType.DISK));
+        continue;
       }
       List<StorageReportProto> storageReportProtos = datanodeInfo.getStorageReports();
       for (StorageReportProto storageReportProto : storageReportProtos) {

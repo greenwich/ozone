@@ -200,8 +200,10 @@ public class RatisPipelineProvider
     DatanodeDetails suggestedLeader = leaderChoosePolicy.chooseLeader(dns);
 
     List<StorageTier> storageTiers = NodeUtils.getDatanodesStorageTypes(dns, getNodeManager());
-    Preconditions.checkArgument(storageTiers.contains(storageTier),
-        "Created pipeline nodes do not support requested storageTier: " + storageTier);
+    if (storageTier != null && !storageTiers.isEmpty()) {
+      Preconditions.checkArgument(storageTiers.contains(storageTier),
+          "Created pipeline nodes do not support requested storageTier: " + storageTier);
+    }
     Pipeline pipeline = Pipeline.newBuilder()
         .setId(PipelineID.randomId())
         .setState(PipelineState.ALLOCATED)
