@@ -464,7 +464,7 @@ public final class ReplicationTestUtil {
       commandsSent.add(Pair.of(sources.get(0), command));
       return null;
     }).when(mock).sendThrottledReplicationCommand(
-        any(ContainerInfo.class), anyList(), any(DatanodeDetails.class), anyInt());
+        any(ContainerInfo.class), anyList(), any(DatanodeDetails.class), anyInt(), any());
   }
 
   /**
@@ -488,7 +488,7 @@ public final class ReplicationTestUtil {
         throw new CommandTargetOverloadedException("Overloaded");
       }
       ReconstructECContainersCommand cmd = invocationOnMock.getArgument(1);
-      commandsSent.add(Pair.of(cmd.getTargetDatanodes().get(0), cmd));
+      commandsSent.add(Pair.of(cmd.getTargetDatanodes().get(0).getDatanodeDetails(), cmd));
       return null;
     }).when(mock).sendThrottledReconstructionCommand(any(ContainerInfo.class), any());
   }

@@ -428,7 +428,7 @@ public class TestECUnderReplicationHandler {
             Pair.of(IN_SERVICE, 5));
     doThrow(new CommandTargetOverloadedException("Overloaded"))
         .when(replicationManager).sendThrottledReplicationCommand(
-            any(), anyList(), any(), anyInt());
+            any(), anyList(), any(), anyInt(), any());
 
     assertThrows(CommandTargetOverloadedException.class, () ->
         testUnderReplicationWithMissingIndexes(

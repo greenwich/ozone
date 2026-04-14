@@ -168,7 +168,7 @@ public class TestOzoneContainer {
       containerDatas.add(keyValueContainerData);
       keyValueContainer = new KeyValueContainer(
           keyValueContainerData, conf);
-      keyValueContainer.create(volumeSet, volumeChoosingPolicy, clusterId);
+      keyValueContainer.create(volumeSet, volumeChoosingPolicy, clusterId, null);
       myVolume = keyValueContainer.getContainerData().getVolume();
       
       // Track container in mock volume
@@ -286,7 +286,7 @@ public class TestOzoneContainer {
     StorageContainerException e = assertThrows(
         StorageContainerException.class,
         () -> keyValueContainer.
-            create(volumeSet, volumeChoosingPolicy, clusterId)
+            create(volumeSet, volumeChoosingPolicy, clusterId, null)
     );
     assertEquals(DISK_OUT_OF_SPACE, e.getResult());
   }

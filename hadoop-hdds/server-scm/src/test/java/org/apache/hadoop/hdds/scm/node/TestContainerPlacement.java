@@ -42,6 +42,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.hdds.HddsConfigKeys;
 import org.apache.hadoop.hdds.client.RatisReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.DatanodeID;
@@ -231,7 +232,7 @@ public class TestContainerPlacement {
               ReplicationConfig.fromProtoTypeAndFactor(
                   SCMTestUtils.getReplicationType(conf),
                   SCMTestUtils.getReplicationFactor(conf)),
-              OzoneConsts.OZONE);
+              OzoneConsts.OZONE, StorageTier.getDefaultTier());
       assertNotNull(container, "allocateContainer returned null (unexpected in this placement test)");
 
       int replicaCount = 0;

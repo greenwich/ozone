@@ -24,6 +24,7 @@ import static org.apache.hadoop.ozone.container.keyvalue.impl.BlockManagerImpl.F
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -95,7 +96,7 @@ public class TestBlockManagerImpl {
     VolumeSet volumeSet = mock(MutableVolumeSet.class);
 
     RoundRobinVolumeChoosingPolicy volumeChoosingPolicy = mock(RoundRobinVolumeChoosingPolicy.class);
-    when(volumeChoosingPolicy.chooseVolume(anyList(), anyLong()))
+    when(volumeChoosingPolicy.chooseVolume(anyList(), anyLong(), any()))
         .thenReturn(hddsVolume);
 
     KeyValueContainerData keyValueContainerData = new KeyValueContainerData(1L,
@@ -106,7 +107,7 @@ public class TestBlockManagerImpl {
     keyValueContainer = new KeyValueContainer(
         keyValueContainerData, config);
 
-    keyValueContainer.create(volumeSet, volumeChoosingPolicy, scmId);
+    keyValueContainer.create(volumeSet, volumeChoosingPolicy, scmId, null);
 
     // Creating BlockData
     BlockID blockID = new BlockID(1L, 1L);

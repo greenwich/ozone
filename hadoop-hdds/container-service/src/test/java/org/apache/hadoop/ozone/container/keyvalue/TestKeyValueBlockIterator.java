@@ -116,7 +116,7 @@ public class TestKeyValueBlockIterator {
     // Init the container.
     KeyValueContainer container = new KeyValueContainer(containerData, conf);
     container.create(volumeSet, new RoundRobinVolumeChoosingPolicy(),
-        clusterID);
+        clusterID, null);
     db = BlockUtils.getDB(containerData, conf);
   }
 

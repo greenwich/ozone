@@ -301,14 +301,14 @@ public class TestVolumeSetDiskChecks {
     StorageVolumeUtil.getHddsVolumesList(volumeSet.getVolumesList())
         .forEach(hddsVolume -> hddsVolume.setDbParentDir(tempDir.toFile()));
     container.create(volumeSet,
-        new RoundRobinVolumeChoosingPolicy(), UUID.randomUUID().toString());
+        new RoundRobinVolumeChoosingPolicy(), UUID.randomUUID().toString(), null);
     conSet.addContainer(container);
 
     KeyValueContainer container1 = new KeyValueContainer(data1, conf);
     StorageVolumeUtil.getHddsVolumesList(volumeSet1.getVolumesList())
         .forEach(hddsVolume -> hddsVolume.setDbParentDir(tempDir.toFile()));
     container1.create(volumeSet1,
-        new RoundRobinVolumeChoosingPolicy(), UUID.randomUUID().toString());
+        new RoundRobinVolumeChoosingPolicy(), UUID.randomUUID().toString(), null);
     conSet.addContainer(container1);
     DatanodeStateMachine datanodeStateMachineMock =
         mock(DatanodeStateMachine.class);

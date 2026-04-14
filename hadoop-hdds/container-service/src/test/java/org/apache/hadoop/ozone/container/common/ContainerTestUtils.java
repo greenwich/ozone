@@ -384,7 +384,7 @@ public final class ContainerTestUtils {
 
     KeyValueContainer container =
         new KeyValueContainer(keyValueContainerData, conf);
-    container.create(volume.getVolumeSet(), volumeChoosingPolicy, clusterId);
+    container.create(volume.getVolumeSet(), volumeChoosingPolicy, clusterId, null);
 
     container.close();
 

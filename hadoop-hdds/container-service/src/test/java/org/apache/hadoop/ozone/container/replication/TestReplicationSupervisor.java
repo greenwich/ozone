@@ -997,8 +997,9 @@ public class TestReplicationSupervisor {
     byte[] missingIndexes = new byte[1];
     missingIndexes[0] = 4;
 
-    List<DatanodeDetails> target = singletonList(
-        MockDatanodeDetails.randomDatanodeDetails());
+    List<ReconstructECContainersCommand.ECReconstructionTarget> target = singletonList(
+        new ReconstructECContainersCommand.ECReconstructionTarget(
+            MockDatanodeDetails.randomDatanodeDetails(), null));
     ReconstructECContainersCommand cmd = new ReconstructECContainersCommand(containerId, sources, target,
         UnsafeByteOperations.unsafeWrap(missingIndexes),
         new ECReplicationConfig(3, 2));
@@ -1025,8 +1026,9 @@ public class TestReplicationSupervisor {
 
     @Override
     public void reconstructECContainerGroup(long containerID,
-        ECReplicationConfig repConfig, SortedMap<Integer, DatanodeDetails> sourceNodeMap,
-        SortedMap<Integer, DatanodeDetails> targetNodeMap) {
+        ECReplicationConfig repConfig,
+        SortedMap<Integer, ReconstructECContainersCommand.DatanodeDetailsAndReplicaIndex> sourceNodeMap,
+        SortedMap<Integer, ReconstructECContainersCommand.ECReconstructionTarget> targetNodeMap) {
       assertEquals(1, supervisor.getTotalInFlightReplications());
 
       KeyValueContainerData kvcd = new KeyValueContainerData(

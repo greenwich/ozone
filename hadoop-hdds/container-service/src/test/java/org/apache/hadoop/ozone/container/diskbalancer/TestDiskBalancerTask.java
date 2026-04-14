@@ -694,9 +694,9 @@ public class TestDiskBalancerTask {
 
     KeyValueContainer container = new KeyValueContainer(containerData, conf);
     VolumeChoosingPolicy policy = mock(VolumeChoosingPolicy.class);
-    when(policy.chooseVolume(any(List.class), any(Long.class)))
+    when(policy.chooseVolume(any(List.class), any(Long.class), any()))
         .thenReturn(vol);
-    container.create((VolumeSet) volumeSet, policy, scmId);
+    container.create((VolumeSet) volumeSet, policy, scmId, null);
     containerSet.addContainer(container);
 
     // Manually update volume usage for test purposes

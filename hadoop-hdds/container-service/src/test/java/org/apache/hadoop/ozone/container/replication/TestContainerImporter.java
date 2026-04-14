@@ -124,7 +124,7 @@ class TestContainerImporter {
     // second import should fail immediately
     StorageContainerException ex = assertThrows(StorageContainerException.class,
         () -> containerImporter.importContainer(containerId, tarFile.toPath(),
-            null, NO_COMPRESSION));
+            null, NO_COMPRESSION, null));
     assertEquals(ContainerProtos.Result.CONTAINER_EXISTS, ex.getResult());
     assertThat(ex.getMessage()).contains("Container already exists");
   }
@@ -143,7 +143,7 @@ class TestContainerImporter {
     CompletableFuture.runAsync(() -> {
       try {
         containerImporter.importContainer(containerId, tarFile.toPath(),
-            null, NO_COMPRESSION);
+            null, NO_COMPRESSION, null);
       } catch (Exception ex) {
         // do nothing
       }
@@ -154,7 +154,7 @@ class TestContainerImporter {
     StorageContainerException ex = assertThrows(
         StorageContainerException.class,
         () -> containerImporter.importContainer(containerId, tarFile.toPath(),
-            null, NO_COMPRESSION));
+            null, NO_COMPRESSION, null));
     assertEquals(ContainerProtos.Result.CONTAINER_EXISTS,
         ex.getResult());
     assertThat(ex.getMessage()).contains("import in progress");
@@ -186,7 +186,7 @@ class TestContainerImporter {
     StorageContainerException scException =
         assertThrows(StorageContainerException.class,
             () -> importer.importContainer(containerId,
-                tarFile.toPath(), null, NO_COMPRESSION));
+                tarFile.toPath(), null, NO_COMPRESSION, null));
     Assertions.assertTrue(scException.getMessage().
         contains("Container checksum error"));
   }
@@ -200,7 +200,7 @@ class TestContainerImporter {
     // import the container
     File tarFile = containerTarFile(containerId, containerData);
     containerImporter.importContainer(containerId, tarFile.toPath(),
-        targetVolume, NO_COMPRESSION);
+        targetVolume, NO_COMPRESSION, null);
 
     verify(containerSet, atLeastOnce()).scanContainer(containerId, "Imported container");
   }
@@ -213,7 +213,7 @@ class TestContainerImporter {
       // import the container
       File tarFile = containerTarFile(containerId, containerData);
       assertThrows(IOException.class, () -> containerImporter.importContainer(containerId, tarFile.toPath(),
-          targetVolume, NO_COMPRESSION));
+          targetVolume, NO_COMPRESSION, null));
       mockedStatic.verify(() -> StorageVolumeUtil.onFailure(any()), times(1));
     }
   }
@@ -229,7 +229,7 @@ class TestContainerImporter {
     // import the container
     File tarFile = containerTarFile(containerId, containerData);
     containerImporter.importContainer(containerId, tarFile.toPath(),
-        targetVolume, NO_COMPRESSION);
+        targetVolume, NO_COMPRESSION, null);
 
     assertEquals(Optional.empty(), containerData.lastDataScanTime());
   }

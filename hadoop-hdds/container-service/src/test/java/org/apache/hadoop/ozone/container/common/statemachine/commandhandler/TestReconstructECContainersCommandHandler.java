@@ -85,7 +85,10 @@ public class TestReconstructECContainersCommandHandler {
           dnDetails.stream().map(a -> new ReconstructECContainersCommand
               .DatanodeDetailsAndReplicaIndex(a, dnDetails.indexOf(a)))
                   .collect(Collectors.toList());
-      List<DatanodeDetails> targets = getDNDetails(2);
+      List<ReconstructECContainersCommand.ECReconstructionTarget> targets =
+          getDNDetails(2).stream()
+              .map(dn -> new ReconstructECContainersCommand.ECReconstructionTarget(dn, null))
+              .collect(Collectors.toList());
       ReconstructECContainersCommand reconstructECContainersCommand =
           new ReconstructECContainersCommand(1L, sources, targets,
               missingContainerIndexes, ecReplicationConfig);

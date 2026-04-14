@@ -22,6 +22,7 @@ import static org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.Con
 import static org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.ContainerDataProto.State.UNHEALTHY;
 import static org.apache.hadoop.ozone.container.common.impl.ContainerImplTestUtils.newContainerSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.anyList;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.mock;
@@ -103,7 +104,7 @@ public class TestStaleRecoveringContainerScrubbingService {
     volumeSet = mock(MutableVolumeSet.class);
 
     volumeChoosingPolicy = mock(RoundRobinVolumeChoosingPolicy.class);
-    when(volumeChoosingPolicy.chooseVolume(anyList(), anyLong()))
+    when(volumeChoosingPolicy.chooseVolume(anyList(), anyLong(), any()))
         .thenReturn(hddsVolume);
   }
 
@@ -133,7 +134,7 @@ public class TestStaleRecoveringContainerScrubbingService {
           new KeyValueContainer(recoveringContainerData,
               conf);
       recoveringKeyValueContainer.create(
-          volumeSet, volumeChoosingPolicy, clusterID);
+          volumeSet, volumeChoosingPolicy, clusterID, null);
       containerSet.addContainer(recoveringKeyValueContainer);
       createdIds.add((long) containerIdNum);
     }

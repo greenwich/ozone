@@ -195,7 +195,7 @@ public class TestSendContainerRequestHandler {
     // Verify commit space is reserved
     assertEquals(volume.getCommittedBytes(), initialCommittedBytes + expectedReservedSpace);
 
-    doThrow(new IOException("Failed")).when(importer).importContainer(anyLong(), any(), any(), any());
+    doThrow(new IOException("Failed")).when(importer).importContainer(anyLong(), any(), any(), any(), any());
 
     sendContainerRequestHandler.onCompleted();
 

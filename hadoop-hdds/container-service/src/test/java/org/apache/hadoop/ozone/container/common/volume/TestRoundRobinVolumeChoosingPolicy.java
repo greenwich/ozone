@@ -96,21 +96,21 @@ public class TestRoundRobinVolumeChoosingPolicy {
     assertEquals(200L, hddsVolume2.getCurrentUsage().getAvailable());
 
     // Test two rounds of round-robin choosing
-    assertEquals(hddsVolume1, policy.chooseVolume(volumes, 0));
-    assertEquals(hddsVolume2, policy.chooseVolume(volumes, 0));
-    assertEquals(hddsVolume1, policy.chooseVolume(volumes, 0));
-    assertEquals(hddsVolume2, policy.chooseVolume(volumes, 0));
+    assertEquals(hddsVolume1, policy.chooseVolume(volumes, 0, null));
+    assertEquals(hddsVolume2, policy.chooseVolume(volumes, 0, null));
+    assertEquals(hddsVolume1, policy.chooseVolume(volumes, 0, null));
+    assertEquals(hddsVolume2, policy.chooseVolume(volumes, 0, null));
 
     // The first volume has only 100L space, so the policy should
     // choose the second one in case we ask for more.
     assertEquals(hddsVolume2,
-        policy.chooseVolume(volumes, 120));
+        policy.chooseVolume(volumes, 120, null));
   }
 
   @Test
   public void throwsDiskOutOfSpaceIfRequestMoreThanAvailable() {
     Exception e = assertThrows(DiskOutOfSpaceException.class,
-        () -> policy.chooseVolume(volumes, 300));
+        () -> policy.chooseVolume(volumes, 300, null));
 
     String msg = e.getMessage();
     assertThat(msg).contains("No volumes have enough space for a new container.  " +
@@ -123,7 +123,7 @@ public class TestRoundRobinVolumeChoosingPolicy {
     volumes.forEach(vol ->
         initialCommittedSpace.put(vol, vol.getCommittedBytes()));
 
-    HddsVolume selectedVolume = policy.chooseVolume(volumes, 50);
+    HddsVolume selectedVolume = policy.chooseVolume(volumes, 50, null);
 
     assertEquals(initialCommittedSpace.get(selectedVolume) + 50,
         selectedVolume.getCommittedBytes());

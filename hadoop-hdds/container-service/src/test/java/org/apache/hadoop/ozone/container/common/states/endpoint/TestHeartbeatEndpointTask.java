@@ -75,9 +75,11 @@ public class TestHeartbeatEndpointTask {
     StorageContainerDatanodeProtocolClientSideTranslatorPB scm =
         mock(StorageContainerDatanodeProtocolClientSideTranslatorPB.class);
 
-    List<DatanodeDetails> targetDns = new ArrayList<>();
-    targetDns.add(MockDatanodeDetails.randomDatanodeDetails());
-    targetDns.add(MockDatanodeDetails.randomDatanodeDetails());
+    List<ReconstructECContainersCommand.ECReconstructionTarget> targetDns = new ArrayList<>();
+    targetDns.add(new ReconstructECContainersCommand.ECReconstructionTarget(
+        MockDatanodeDetails.randomDatanodeDetails(), null));
+    targetDns.add(new ReconstructECContainersCommand.ECReconstructionTarget(
+        MockDatanodeDetails.randomDatanodeDetails(), null));
     ReconstructECContainersCommand cmd = new ReconstructECContainersCommand(
         1, emptyList(), targetDns,
         UnsafeByteOperations.unsafeWrap(new byte[]{2, 5}),

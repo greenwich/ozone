@@ -44,8 +44,9 @@ public class TestReconstructionECContainersCommands {
     ECReplicationConfig ecReplicationConfig = new ECReplicationConfig(3, 2);
     final ByteString missingContainerIndexes = UnsafeByteOperations.unsafeWrap(new byte[]{1, 2});
 
-    List<DatanodeDetails> targetDns = new ArrayList<>();
-    targetDns.add(MockDatanodeDetails.randomDatanodeDetails());
+    List<ReconstructECContainersCommand.ECReconstructionTarget> targetDns = new ArrayList<>();
+    targetDns.add(new ReconstructECContainersCommand.ECReconstructionTarget(
+        MockDatanodeDetails.randomDatanodeDetails(), null));
 
     assertThrows(IllegalArgumentException.class,
         () -> new ReconstructECContainersCommand(1L, Collections.emptyList(),
@@ -64,7 +65,10 @@ public class TestReconstructionECContainersCommands {
           a -> new ReconstructECContainersCommand
               .DatanodeDetailsAndReplicaIndex(a, dnDetails.indexOf(a)))
         .collect(Collectors.toList());
-    List<DatanodeDetails> targets = getDNDetails(2);
+    List<ReconstructECContainersCommand.ECReconstructionTarget> targets =
+        getDNDetails(2).stream()
+            .map(dn -> new ReconstructECContainersCommand.ECReconstructionTarget(dn, null))
+            .collect(Collectors.toList());
     ReconstructECContainersCommand reconstructECContainersCommand =
         new ReconstructECContainersCommand(1L, sources, targets,
             missingContainerIndexes, ecReplicationConfig);

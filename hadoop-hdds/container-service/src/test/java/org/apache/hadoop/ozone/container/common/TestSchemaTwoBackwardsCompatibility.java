@@ -272,7 +272,7 @@ public class TestSchemaTwoBackwardsCompatibility {
     cData.setSchemaVersion(OzoneConsts.SCHEMA_V2);
     KeyValueContainer container = new KeyValueContainer(cData, conf);
     container.create(volumeSet, new RoundRobinVolumeChoosingPolicy(),
-        clusterID);
+        clusterID, null);
 
     // populate with some blocks
     // metadata will be updated here, too

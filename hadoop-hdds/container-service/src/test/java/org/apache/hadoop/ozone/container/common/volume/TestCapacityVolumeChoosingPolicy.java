@@ -113,7 +113,7 @@ public class TestCapacityVolumeChoosingPolicy {
 
     // Test 1000 rounds of volume choosing
     for (int i = 0; i < 1000; i++) {
-      HddsVolume volume = policy.chooseVolume(volumes, 0);
+      HddsVolume volume = policy.chooseVolume(volumes, 0, null);
       chooseCount.put(volume, chooseCount.get(volume) + 1);
     }
 
@@ -124,7 +124,7 @@ public class TestCapacityVolumeChoosingPolicy {
   @Test
   public void throwsDiskOutOfSpaceIfRequestMoreThanAvailable() {
     Exception e = assertThrows(DiskOutOfSpaceException.class,
-        () -> policy.chooseVolume(volumes, 500));
+        () -> policy.chooseVolume(volumes, 500, null));
 
     String msg = e.getMessage();
     assertThat(msg)
@@ -155,7 +155,7 @@ public class TestCapacityVolumeChoosingPolicy {
     volumes.forEach(vol ->
         initialCommittedSpace.put(vol, vol.getCommittedBytes()));
 
-    HddsVolume selectedVolume = policy.chooseVolume(volumes, 50);
+    HddsVolume selectedVolume = policy.chooseVolume(volumes, 50, null);
 
     assertEquals(initialCommittedSpace.get(selectedVolume) + 50,
         selectedVolume.getCommittedBytes());

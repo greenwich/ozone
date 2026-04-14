@@ -189,7 +189,7 @@ public class TestBlockDeletingService {
     data.setSchemaVersion(schemaVersion);
     KeyValueContainer container = new KeyValueContainer(data, conf);
     container.create(volumeSet,
-        new RoundRobinVolumeChoosingPolicy(), scmId);
+        new RoundRobinVolumeChoosingPolicy(), scmId, null);
     containerSet.addContainer(container);
     data = (KeyValueContainerData) containerSet.getContainer(
         containerID).getContainerData();

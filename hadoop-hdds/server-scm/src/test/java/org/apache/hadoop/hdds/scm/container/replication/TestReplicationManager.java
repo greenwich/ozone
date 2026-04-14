@@ -55,6 +55,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.stream.Collectors;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -1153,11 +1154,11 @@ public class TestReplicationManager {
           new ReconstructECContainersCommand.DatanodeDetailsAndReplicaIndex(
               MockDatanodeDetails.randomDatanodeDetails(), i));
     }
-    List<DatanodeDetails> targetNodes = new ArrayList<>();
     DatanodeDetails target4 = MockDatanodeDetails.randomDatanodeDetails();
     DatanodeDetails target5 = MockDatanodeDetails.randomDatanodeDetails();
-    targetNodes.add(target4);
-    targetNodes.add(target5);
+    List<ReconstructECContainersCommand.ECReconstructionTarget> targetNodes = new ArrayList<>();
+    targetNodes.add(new ReconstructECContainersCommand.ECReconstructionTarget(target4, null));
+    targetNodes.add(new ReconstructECContainersCommand.ECReconstructionTarget(target5, null));
     byte[] missingIndexes = {4, 5};
 
     ReconstructECContainersCommand command = new ReconstructECContainersCommand(
@@ -1178,8 +1179,8 @@ public class TestReplicationManager {
       cmdIndexes.add(op.getReplicaIndex());
     }
     assertEquals(2, cmdTargets.size());
-    for (DatanodeDetails dn : targetNodes) {
-      assertThat(cmdTargets).contains(dn);
+    for (ReconstructECContainersCommand.ECReconstructionTarget t : targetNodes) {
+      assertThat(cmdTargets).contains(t.getDatanodeDetails());
     }
 
     assertEquals(2, cmdIndexes.size());
@@ -1369,7 +1370,7 @@ public class TestReplicationManager {
         repConfig, 1, HddsProtos.LifeCycleState.CLOSED, 10, 20);
 
     replicationManager.sendThrottledReplicationCommand(
-        container, new ArrayList<>(sourceNodes), destination, replicaIndex);
+        container, new ArrayList<>(sourceNodes), destination, replicaIndex, null);
 
     assertEquals(1, commandsSent.size());
     Pair<DatanodeID, SCMCommand<?>> cmdWithTarget = commandsSent.iterator().next();
@@ -1409,7 +1410,7 @@ public class TestReplicationManager {
         .getReplicateContainerCmdsDeferredTotal();
     assertThrows(CommandTargetOverloadedException.class,
         () -> replicationManager.sendThrottledReplicationCommand(
-            container, sourceNodes, destination, 0));
+            container, sourceNodes, destination, 0, null));
     assertEquals(overLoadedCount + 1, replicationManager.getMetrics()
         .getReplicateContainerCmdsDeferredTotal());
   }
@@ -1480,9 +1481,13 @@ public class TestReplicationManager {
               MockDatanodeDetails.randomDatanodeDetails(), i));
     }
     byte[] missingIndexes = new byte[]{4, 5};
+    List<ReconstructECContainersCommand.ECReconstructionTarget> ecTargets =
+        Arrays.stream(targets)
+            .map(dn -> new ReconstructECContainersCommand.ECReconstructionTarget(dn, null))
+            .collect(Collectors.toList());
     return new ReconstructECContainersCommand(
         containerInfo.getContainerID(), sources,
-        Arrays.asList(targets), UnsafeByteOperations.unsafeWrap(missingIndexes),
+        ecTargets, UnsafeByteOperations.unsafeWrap(missingIndexes),
         (ECReplicationConfig) repConfig);
   }
 
@@ -1545,7 +1550,7 @@ public class TestReplicationManager {
 
     replicationManager.sendThrottledReplicationCommand(container,
         new ArrayList<>(commandCounts.keySet()),
-        MockDatanodeDetails.randomDatanodeDetails(), 1);
+        MockDatanodeDetails.randomDatanodeDetails(), 1, null);
 
     Set<DatanodeDetails> excluded = replicationManager.getExcludedNodes();
     assertEquals(1, excluded.size());

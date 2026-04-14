@@ -205,7 +205,7 @@ public class TestContainerPersistence {
     KeyValueContainer container = new KeyValueContainer(data, conf);
     commitBytesBefore = StorageVolumeUtil.getHddsVolumesList(volumeSet.getVolumesList()).get(0).getCommittedBytes();
 
-    container.create(volumeSet, volumeChoosingPolicy, SCM_ID);
+    container.create(volumeSet, volumeChoosingPolicy, SCM_ID, null);
     cSet.addContainer(container);
 
     commitBytesAfter = container.getContainerData()

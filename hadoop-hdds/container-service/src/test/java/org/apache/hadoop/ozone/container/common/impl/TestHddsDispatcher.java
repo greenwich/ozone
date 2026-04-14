@@ -167,9 +167,9 @@ public class TestHddsDispatcher {
       StorageVolumeUtil.getHddsVolumesList(volumeSet.getVolumesList())
           .forEach(hddsVolume -> hddsVolume.setDbParentDir(tempDir.toFile()));
       container.create(volumeSet, new RoundRobinVolumeChoosingPolicy(),
-          scmId.toString());
+          scmId.toString(), null);
       container2.create(volumeSet, new RoundRobinVolumeChoosingPolicy(),
-          scmId.toString());
+          scmId.toString(), null);
       containerSet.addContainer(container);
       containerSet.addContainer(container2);
       ContainerMetrics metrics = ContainerMetrics.create(conf);
@@ -326,7 +326,7 @@ public class TestHddsDispatcher {
       StorageVolumeUtil.getHddsVolumesList(volumeSet.getVolumesList())
           .forEach(hddsVolume -> hddsVolume.setDbParentDir(tempDir.toFile()));
       container.create(volumeSet, new RoundRobinVolumeChoosingPolicy(),
-          scmId.toString());
+          scmId.toString(), null);
       containerSet.addContainer(container);
       ContainerMetrics metrics = ContainerMetrics.create(conf);
       Map<ContainerType, Handler> handlers = Maps.newHashMap();
@@ -366,7 +366,7 @@ public class TestHddsDispatcher {
       StorageContainerException scException =
           assertThrows(StorageContainerException.class,
               () -> container2.create(volumeSet,
-                  new RoundRobinVolumeChoosingPolicy(), scmId.toString()));
+                  new RoundRobinVolumeChoosingPolicy(), scmId.toString(), null));
       assertEquals("Container creation failed, due to disk out of space",
           scException.getMessage());
     } finally {

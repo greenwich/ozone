@@ -40,8 +40,10 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.apache.hadoop.hdds.HddsConfigKeys;
 import org.apache.hadoop.hdds.client.ContainerBlockID;
+import org.apache.hadoop.hdds.client.OzoneStoragePolicy;
 import org.apache.hadoop.hdds.client.RatisReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos.ReplicationFactor;
@@ -99,7 +101,8 @@ public class TestSCMBlockProtocolServer {
     @Override
     public AllocatedBlock allocateBlock(long size,
         ReplicationConfig replicationConfig, String owner,
-        ExcludeList excludeList) throws IOException, TimeoutException {
+        ExcludeList excludeList, StoragePolicy storagePolicy,
+        boolean allowFallbackStoragePolicy) throws IOException, TimeoutException {
       List<DatanodeDetails> nodes = new ArrayList<>(datanodes);
       Collections.shuffle(nodes);
       Pipeline pipeline;
@@ -308,7 +311,8 @@ public class TestSCMBlockProtocolServer {
 
     List<AllocatedBlock> allocatedBlocks = server.allocateBlock(
         blockSize, numOfBlocks, replicationConfig, "o",
-        new ExcludeList(), clientAddress);
+        new ExcludeList(), clientAddress,
+        OzoneStoragePolicy.getDefaultPolicy(), true);
     assertEquals(numOfBlocks, allocatedBlocks.size());
     for (AllocatedBlock allocatedBlock: allocatedBlocks) {
       List<DatanodeDetails> nodesInOrder =

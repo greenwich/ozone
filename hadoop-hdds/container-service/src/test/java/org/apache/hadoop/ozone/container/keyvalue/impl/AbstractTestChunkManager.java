@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.abort;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.anyList;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.mock;
@@ -93,7 +94,7 @@ public abstract class AbstractTestChunkManager {
 
     RoundRobinVolumeChoosingPolicy volumeChoosingPolicy =
         mock(RoundRobinVolumeChoosingPolicy.class);
-    when(volumeChoosingPolicy.chooseVolume(anyList(), anyLong()))
+    when(volumeChoosingPolicy.chooseVolume(anyList(), anyLong(), any()))
         .thenReturn(hddsVolume);
 
     keyValueContainerData = new KeyValueContainerData(1L,
@@ -104,7 +105,7 @@ public abstract class AbstractTestChunkManager {
     keyValueContainer = new KeyValueContainer(keyValueContainerData, config);
 
     keyValueContainer.create(volumeSet, volumeChoosingPolicy,
-        UUID.randomUUID().toString());
+        UUID.randomUUID().toString(), null);
 
     header = "my header".getBytes(UTF_8);
     byte[] bytes = "testing write chunks".getBytes(UTF_8);
