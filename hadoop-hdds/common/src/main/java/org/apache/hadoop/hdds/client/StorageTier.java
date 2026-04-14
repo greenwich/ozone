@@ -95,7 +95,7 @@ public enum StorageTier {
 
   static {
     // Assign unique primes to each StorageType
-    int[] primes = {2, 3, 5, 7, 11};
+    int[] primes = {2, 3, 5, 7, 11, 13, 17, 19};
     int idx = 0;
     for (StorageType value : StorageType.values()) {
       STORAGE_TYPE_PRIME_MAP.put(value, primes[idx++]);
