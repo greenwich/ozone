@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdds.client.StorageTypeUtils;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.StorageContainerDatanodeProtocolProtos.MetadataStorageReportProto;
@@ -413,8 +414,8 @@ public abstract class SCMCommonPlacementPolicy implements
     Preconditions.checkArgument(datanodeDetails instanceof DatanodeInfo);
     DatanodeInfo datanodeInfo = (DatanodeInfo) datanodeDetails;
     return datanodeInfo.getStorageReports().stream()
-        .anyMatch(report -> report.getStorageType().name()
-            .equals(storageType.name()));
+        .anyMatch(report -> StorageTypeUtils.getFromProtobuf(
+            report.getStorageType()).equals(storageType));
   }
 
   /**

@@ -219,6 +219,7 @@ public abstract class ContainerData {
     storageType = type;
   }
 
+  @Nullable
   public StorageType getStorageType() {
     return storageType;
   }

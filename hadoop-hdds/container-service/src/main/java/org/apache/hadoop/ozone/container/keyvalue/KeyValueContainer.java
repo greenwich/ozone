@@ -57,6 +57,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdds.HddsUtils;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.ContainerDataProto.State;
@@ -147,7 +148,8 @@ public class KeyValueContainer implements Container<KeyValueContainerData> {
 
   @Override
   public void create(VolumeSet volumeSet, VolumeChoosingPolicy
-      volumeChoosingPolicy, String clusterId) throws StorageContainerException {
+      volumeChoosingPolicy, String clusterId, StorageType storageType)
+      throws StorageContainerException {
     Objects.requireNonNull(volumeChoosingPolicy, "VolumeChoosingPolicy == null");
     Objects.requireNonNull(volumeSet, "volumeSet == null");
     Objects.requireNonNull(clusterId, "clusterId == null");
@@ -163,7 +165,8 @@ public class KeyValueContainer implements Container<KeyValueContainerData> {
         HddsVolume containerVolume;
         String hddsVolumeDir;
         try {
-          containerVolume = volumeChoosingPolicy.chooseVolume(volumes, maxSize);
+          containerVolume = volumeChoosingPolicy.chooseVolume(
+              volumes, maxSize, storageType);
           hddsVolumeDir = containerVolume.getHddsRootDir().toString();
           // Set volume before getContainerDBFile(), because we may need the
           // volume to deduce the db file.
@@ -172,10 +175,12 @@ public class KeyValueContainer implements Container<KeyValueContainerData> {
           containerData.setCommittedSpace(true);
         } catch (DiskOutOfSpaceException ex) {
           throw new StorageContainerException("Container creation failed, " +
-              "due to disk out of space", ex, DISK_OUT_OF_SPACE);
+              "due to disk out of space on StorageType: " + storageType,
+              ex, DISK_OUT_OF_SPACE);
         } catch (IOException ex) {
           throw new StorageContainerException(
-              "Container creation failed. " + ex.getMessage(), ex,
+              "Container creation failed on StorageType:" + storageType
+                  + ". " + ex.getMessage(), ex,
               CONTAINER_INTERNAL_ERROR);
         }
 

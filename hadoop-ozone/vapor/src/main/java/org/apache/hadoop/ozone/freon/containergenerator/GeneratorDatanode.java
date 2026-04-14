@@ -329,7 +329,7 @@ public class GeneratorDatanode extends BaseGenerator {
         new KeyValueContainer(keyValueContainerData, config);
 
     try {
-      keyValueContainer.create(volumeSet, volumeChoosingPolicy, scmId);
+      keyValueContainer.create(volumeSet, volumeChoosingPolicy, scmId, null);
     } catch (StorageContainerException ex) {
       throw new RuntimeException(ex);
     }

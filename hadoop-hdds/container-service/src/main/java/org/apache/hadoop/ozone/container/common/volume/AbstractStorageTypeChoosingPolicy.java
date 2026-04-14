@@ -15,26 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.hadoop.ozone.container.common.interfaces;
+package org.apache.hadoop.ozone.container.common.volume;
 
 import java.io.IOException;
 import java.util.List;
-import jakarta.annotation.Nullable;
+import java.util.stream.Collectors;
+
 import org.apache.hadoop.fs.StorageType;
-import org.apache.hadoop.hdds.annotation.InterfaceAudience;
-import org.apache.hadoop.ozone.container.common.volume.HddsVolume;
+import org.apache.hadoop.ozone.container.common.interfaces.VolumeChoosingPolicy;
 
 /**
- * This interface specifies the policy for choosing volumes to store replicas.
+ * Abstract base class for implementing a VolumeChoosingPolicy that filters
+ * volumes by a specific StorageType before applying a selection strategy.
+ *
+ * Subclasses must implement the chooseVolumeInternal method, which defines
+ * the strategy for selecting a volume from the filtered list.
  */
-@InterfaceAudience.Private
-public interface VolumeChoosingPolicy {
+public abstract class AbstractStorageTypeChoosingPolicy
+    implements VolumeChoosingPolicy {
 
   /**
    * Choose a volume to place a container,
    * given a list of volumes and the max container size sought for storage.
    *
-   * The implementations of this interface must be thread-safe.
+   * The implementations of this method must be thread-safe.
    *
    * @param volumes - a list of available volumes.
    * @param maxContainerSize - the maximum size of the container for which a
@@ -42,6 +46,18 @@ public interface VolumeChoosingPolicy {
    * @return the chosen volume.
    * @throws IOException when disks are unavailable or are full.
    */
-  HddsVolume chooseVolume(List<HddsVolume> volumes, long maxContainerSize,
-      @Nullable StorageType storageType) throws IOException;
+  protected abstract HddsVolume chooseVolumeInternal(
+      List<HddsVolume> volumes, long maxContainerSize) throws IOException;
+
+  @Override
+  public HddsVolume chooseVolume(List<HddsVolume> volumes,
+      long maxContainerSize, StorageType storageType) throws IOException {
+    List<HddsVolume> filteredVolumes = volumes;
+    if (storageType != null) {
+      filteredVolumes = volumes.stream()
+          .filter(volume -> volume.getStorageType().equals(storageType))
+          .collect(Collectors.toList());
+    }
+    return chooseVolumeInternal(filteredVolumes, maxContainerSize);
+  }
 }

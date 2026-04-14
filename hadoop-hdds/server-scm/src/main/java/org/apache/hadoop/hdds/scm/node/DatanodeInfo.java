@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdds.client.StorageTypeUtils;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.StorageContainerDatanodeProtocolProtos.CommandQueueReportProto;
 import org.apache.hadoop.hdds.protocol.proto.StorageContainerDatanodeProtocolProtos.LayoutVersionProto;
@@ -364,8 +365,8 @@ public class DatanodeInfo extends DatanodeDetails {
     try {
       lock.readLock().lock();
       return storageReports.stream()
-          .anyMatch(report -> report.getStorageType().name()
-              .equals(storageType.name()));
+          .anyMatch(report -> StorageTypeUtils.getFromProtobuf(
+              report.getStorageType()).equals(storageType));
     } finally {
       lock.readLock().unlock();
     }

@@ -26,6 +26,8 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import jakarta.annotation.Nullable;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.conf.StorageUnit;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
@@ -147,11 +149,17 @@ public class ContainerImporter {
   }
 
   HddsVolume chooseNextVolume(long spaceToReserve) throws IOException {
+    return chooseNextVolume(spaceToReserve, null);
+  }
+
+  HddsVolume chooseNextVolume(long spaceToReserve,
+      @Nullable StorageType storageType) throws IOException {
     // Choose volume that can hold both container in tmp and dest directory
-    LOG.debug("Choosing volume to reserve space : {}", spaceToReserve);
+    LOG.debug("Choosing volume to reserve space : {}, storageType: {}",
+        spaceToReserve, storageType);
     return volumeChoosingPolicy.chooseVolume(
         StorageVolumeUtil.getHddsVolumesList(volumeSet.getVolumesList()),
-        spaceToReserve);
+        spaceToReserve, storageType);
   }
 
   public static Path getUntarDirectory(HddsVolume hddsVolume)

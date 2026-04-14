@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import org.apache.hadoop.hdds.annotation.InterfaceStability;
 import org.apache.hadoop.hdds.client.BlockID;
+import org.apache.hadoop.hdds.client.StorageTypeUtils;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.BlockData;
@@ -62,6 +63,7 @@ import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.ReadContai
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.ReadContainerResponseProto;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.Type;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.WriteChunkRequestProto;
+import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
 import org.apache.hadoop.hdds.scm.XceiverClientReply;
 import org.apache.hadoop.hdds.scm.XceiverClientSpi;
 import org.apache.hadoop.hdds.scm.XceiverClientSpi.Validator;
@@ -438,6 +440,17 @@ public final class ContainerProtocolCalls  {
       ByteString data, String tokenString,
       int replicationIndex, BlockData blockData, boolean close)
       throws IOException, ExecutionException, InterruptedException {
+    return writeChunkAsync(xceiverClient, chunk, blockID, data, tokenString,
+        replicationIndex, blockData, close, null);
+  }
+
+  @SuppressWarnings("parameternumber")
+  public static XceiverClientReply writeChunkAsync(
+      XceiverClientSpi xceiverClient, ChunkInfo chunk, BlockID blockID,
+      ByteString data, String tokenString,
+      int replicationIndex, BlockData blockData, boolean close,
+      HddsProtos.StorageTypeProto storageType)
+      throws IOException, ExecutionException, InterruptedException {
 
     WriteChunkRequestProto.Builder writeChunkRequest =
         WriteChunkRequestProto.newBuilder()
@@ -449,6 +462,10 @@ public final class ContainerProtocolCalls  {
                 .build())
             .setChunkData(chunk)
             .setData(data);
+    if (storageType != null) {
+      writeChunkRequest.setStorageTypeID(
+          StorageTypeUtils.getIDFromProtobuf(storageType));
+    }
     if (blockData != null) {
       PutBlockRequestProto.Builder createBlockRequest =
           PutBlockRequestProto.newBuilder()
@@ -486,6 +503,13 @@ public final class ContainerProtocolCalls  {
   public static PutSmallFileResponseProto writeSmallFile(
       XceiverClientSpi client, BlockID blockID, byte[] data,
       Token<OzoneBlockTokenIdentifier> token) throws IOException {
+    return writeSmallFile(client, blockID, data, token, null);
+  }
+
+  public static PutSmallFileResponseProto writeSmallFile(
+      XceiverClientSpi client, BlockID blockID, byte[] data,
+      Token<OzoneBlockTokenIdentifier> token,
+      HddsProtos.StorageTypeProto storageType) throws IOException {
 
     BlockData containerBlockData =
         BlockData.newBuilder().setBlockID(blockID.getDatanodeBlockIDProtobuf())
@@ -509,10 +533,14 @@ public final class ContainerProtocolCalls  {
             .setChecksumData(checksumData.getProtoBufMessage())
             .build();
 
-    PutSmallFileRequestProto putSmallFileRequest =
+    PutSmallFileRequestProto.Builder putSmallFileBuilder =
         PutSmallFileRequestProto.newBuilder().setChunkInfo(chunk)
-            .setBlock(createBlockRequest).setData(ByteString.copyFrom(data))
-            .build();
+            .setBlock(createBlockRequest)
+            .setData(ByteString.copyFrom(data));
+    if (storageType != null) {
+      putSmallFileBuilder.setStorageTypeID(
+          StorageTypeUtils.getIDFromProtobuf(storageType));
+    }
 
     String id = client.getPipeline().getFirstNode().getUuidString();
     ContainerCommandRequestProto.Builder builder =
@@ -520,7 +548,7 @@ public final class ContainerProtocolCalls  {
             .setCmdType(Type.PutSmallFile)
             .setContainerID(blockID.getContainerID())
             .setDatanodeUuid(id)
-            .setPutSmallFile(putSmallFileRequest);
+            .setPutSmallFile(putSmallFileBuilder);
     if (token != null) {
       builder.setEncodedToken(token.encodeToUrlString());
     }

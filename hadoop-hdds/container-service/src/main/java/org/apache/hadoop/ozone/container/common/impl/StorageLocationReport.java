@@ -20,6 +20,7 @@ package org.apache.hadoop.ozone.container.common.impl;
 import java.io.IOException;
 import net.jcip.annotations.Immutable;
 import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdds.client.StorageTypeUtils;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos.StorageTypeProto;
 import org.apache.hadoop.hdds.protocol.proto.StorageContainerDatanodeProtocolProtos.MetadataStorageReportProto;
 import org.apache.hadoop.hdds.protocol.proto.StorageContainerDatanodeProtocolProtos.StorageReportProto;
@@ -115,31 +116,15 @@ public final class StorageLocationReport implements StorageLocationReportMXBean 
   }
 
   private StorageTypeProto getStorageTypeProto() {
-    return getStorageTypeProto(getStorageType());
+    return StorageTypeUtils.getStorageTypeProto(getStorageType());
   }
 
+  /**
+   * @deprecated Use {@link StorageTypeUtils#getStorageTypeProto(StorageType)} instead.
+   */
+  @Deprecated
   public static StorageTypeProto getStorageTypeProto(StorageType type) {
-    StorageTypeProto storageTypeProto;
-    switch (type) {
-    case SSD:
-      storageTypeProto = StorageTypeProto.SSD;
-      break;
-    case DISK:
-      storageTypeProto = StorageTypeProto.DISK;
-      break;
-    case ARCHIVE:
-      storageTypeProto = StorageTypeProto.ARCHIVE;
-      break;
-    case PROVIDED:
-      storageTypeProto = StorageTypeProto.PROVIDED;
-      break;
-    case RAM_DISK:
-      storageTypeProto = StorageTypeProto.RAM_DISK;
-      break;
-    default:
-      throw new IllegalArgumentException("Illegal Storage Type specified: " + type);
-    }
-    return storageTypeProto;
+    return StorageTypeUtils.getStorageTypeProto(type);
   }
 
   public long getReserved() { 
@@ -154,28 +139,12 @@ public final class StorageLocationReport implements StorageLocationReportMXBean 
     return fsAvailable;
   }
 
+  /**
+   * @deprecated Use {@link StorageTypeUtils#getFromProtobuf} instead.
+   */
+  @Deprecated
   public static StorageType getStorageType(StorageTypeProto proto) {
-    StorageType storageType;
-    switch (proto) {
-    case SSD:
-      storageType = StorageType.SSD;
-      break;
-    case DISK:
-      storageType = StorageType.DISK;
-      break;
-    case ARCHIVE:
-      storageType = StorageType.ARCHIVE;
-      break;
-    case PROVIDED:
-      storageType = StorageType.PROVIDED;
-      break;
-    case RAM_DISK:
-      storageType = StorageType.RAM_DISK;
-      break;
-    default:
-      throw new IllegalArgumentException("Illegal Storage Type specified: " + proto);
-    }
-    return storageType;
+    return StorageTypeUtils.getFromProtobuf(proto);
   }
 
   /**
