@@ -17,6 +17,8 @@
 
 package org.apache.hadoop.ozone.container.replication;
 
+import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdds.client.StorageTypeUtils;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.CopyContainerResponseProto;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 import org.apache.ratis.thirdparty.io.grpc.stub.CallStreamObserver;
@@ -33,16 +35,25 @@ class CopyContainerResponseStream
     super(streamObserver, containerId, bufferSize);
   }
 
+  CopyContainerResponseStream(
+      CallStreamObserver<CopyContainerResponseProto> streamObserver,
+      long containerId, int bufferSize, StorageType storageType) {
+    super(streamObserver, containerId, bufferSize, storageType);
+  }
+
   @Override
-  protected void sendPart(boolean eof, int length, ByteString data) {
-    CopyContainerResponseProto response =
+  protected void sendPart(boolean eof, int length, ByteString data,
+      StorageType storageType) {
+    CopyContainerResponseProto.Builder response =
         CopyContainerResponseProto.newBuilder()
             .setContainerID(getContainerId())
             .setData(data)
             .setEof(eof)
             .setReadOffset(getWrittenBytes())
-            .setLen(length)
-            .build();
-    getStreamObserver().onNext(response);
+            .setLen(length);
+    if (storageType != null) {
+      response.setStorageTypeID(StorageTypeUtils.getID(storageType));
+    }
+    getStreamObserver().onNext(response.build());
   }
 }

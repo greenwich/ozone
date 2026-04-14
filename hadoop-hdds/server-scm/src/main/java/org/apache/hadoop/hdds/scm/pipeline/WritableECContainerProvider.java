@@ -187,8 +187,94 @@ public class WritableECContainerProvider
   public ContainerInfo getContainer(final long size,
       ECReplicationConfig repConfig, String owner, ExcludeList excludeList,
       StorageTier storageTier) throws IOException {
-    // TODO StoragePolicy Support EC - for now delegate to default behavior
-    return getContainer(size, repConfig, owner, excludeList);
+    int maximumPipelines = getMaximumPipelines(repConfig);
+    int openPipelineCount;
+    synchronized (this) {
+      List<Pipeline> existingPipelines = pipelineManager.getPipelines(
+          repConfig, Pipeline.PipelineState.OPEN, storageTier);
+      openPipelineCount = existingPipelines.size();
+      if (openPipelineCount < maximumPipelines) {
+        try {
+          return allocateContainer(repConfig, size, owner, excludeList, storageTier);
+        } catch (IOException e) {
+          LOG.warn("Unable to allocate a container for storageTier={} with {} existing ones; "
+              + "requested size={}, replication={}, owner={}, {}",
+              storageTier, openPipelineCount, size, repConfig, owner, excludeList, e);
+        }
+      } else if (LOG.isDebugEnabled()) {
+        LOG.debug("Pipeline count {} reached limit {} for storageTier={}, checking existing ones; "
+            + "requested size={}, replication={}, owner={}, {}",
+            openPipelineCount, maximumPipelines, storageTier, size, repConfig, owner,
+            excludeList);
+      }
+    }
+    List<Pipeline> existingPipelines = pipelineManager.getPipelines(
+        repConfig, Pipeline.PipelineState.OPEN, storageTier);
+    final int pipelineCount = existingPipelines.size();
+    LOG.debug("Checking existing pipelines for storageTier={}: {}", storageTier, existingPipelines);
+
+    PipelineRequestInformation pri =
+        PipelineRequestInformation.Builder.getBuilder()
+            .setSize(size)
+            .build();
+    while (!existingPipelines.isEmpty()) {
+      int pipelineIndex =
+          pipelineChoosePolicy.choosePipelineIndex(existingPipelines, pri);
+      if (pipelineIndex < 0) {
+        LOG.warn("Unable to select a pipeline from {} in the list",
+            existingPipelines.size());
+        break;
+      }
+      Pipeline pipeline = existingPipelines.get(pipelineIndex);
+      synchronized (pipeline.getId()) {
+        try {
+          ContainerInfo containerInfo = getContainerFromPipeline(pipeline, storageTier);
+          if (containerInfo == null
+              || !containerHasSpace(containerInfo, size)) {
+            existingPipelines.remove(pipelineIndex);
+            pipelineManager.closePipeline(pipeline.getId());
+            openPipelineCount--;
+          } else {
+            if (pipelineIsExcluded(pipeline, containerInfo, excludeList)) {
+              existingPipelines.remove(pipelineIndex);
+            } else {
+              containerInfo.updateLastUsedTime();
+              return containerInfo;
+            }
+          }
+        } catch (PipelineNotFoundException | ContainerNotFoundException e) {
+          LOG.warn("Pipeline or container not found when selecting a writable "
+              + "container for storageTier={}", storageTier, e);
+          existingPipelines.remove(pipelineIndex);
+          pipelineManager.closePipeline(pipeline.getId());
+          openPipelineCount--;
+        }
+      }
+    }
+    // If we get here, all the pipelines we tried were no good. So try to
+    // allocate a new one.
+    try {
+      if (openPipelineCount >= maximumPipelines) {
+        final int nodeCount = nodeManager.getNodeCount(inServiceHealthy());
+        if (nodeCount > maximumPipelines) {
+          LOG.debug("Increasing pipeline limit {} -> {} for final attempt (storageTier={})",
+              maximumPipelines, nodeCount, storageTier);
+          maximumPipelines = nodeCount;
+        }
+      }
+      if (openPipelineCount < maximumPipelines) {
+        synchronized (this) {
+          return allocateContainer(repConfig, size, owner, excludeList, storageTier);
+        }
+      }
+      throw new IOException("Pipeline limit (" + maximumPipelines
+          + ") reached (" + openPipelineCount + "), none closed for storageTier=" + storageTier);
+    } catch (IOException e) {
+      LOG.warn("Unable to allocate a container for storageTier={} after trying {} existing ones; "
+          + "requested size={}, replication={}, owner={}, {}",
+          storageTier, pipelineCount, size, repConfig, owner, excludeList, e);
+      throw e;
+    }
   }
 
   private int getMaximumPipelines(ECReplicationConfig repConfig) {
@@ -204,6 +290,12 @@ public class WritableECContainerProvider
   private ContainerInfo allocateContainer(ReplicationConfig repConfig,
       long size, String owner, ExcludeList excludeList)
       throws IOException {
+    return allocateContainer(repConfig, size, owner, excludeList, StorageTier.getDefaultTier());
+  }
+
+  private ContainerInfo allocateContainer(ReplicationConfig repConfig,
+      long size, String owner, ExcludeList excludeList, StorageTier storageTier)
+      throws IOException {
 
     List<DatanodeDetails> excludedNodes = Collections.emptyList();
     if (!excludeList.getDatanodes().isEmpty()) {
@@ -211,18 +303,18 @@ public class WritableECContainerProvider
     }
 
     Pipeline newPipeline = pipelineManager.createPipeline(repConfig,
-        excludedNodes, Collections.emptyList());
+        excludedNodes, Collections.emptyList(), storageTier);
     // the returned ContainerInfo should not be null (due to not enough space in the Datanodes specifically) because
     // this is a new pipeline and pipeline creation checks for sufficient space in the Datanodes
     ContainerInfo container =
         containerManager.getMatchingContainer(size, owner, newPipeline,
-            Collections.emptySet(), StorageTier.getDefaultTier());
+            Collections.emptySet(), storageTier);
     if (container == null) {
       // defensive null handling
       throw new IOException("Could not allocate a new container");
     }
     pipelineManager.openPipeline(newPipeline.getId());
-    LOG.info("Created and opened new pipeline {}", newPipeline);
+    LOG.info("Created and opened new pipeline {} for storageTier={}", newPipeline, storageTier);
     return container;
   }
 
@@ -256,6 +348,11 @@ public class WritableECContainerProvider
 
   private ContainerInfo getContainerFromPipeline(Pipeline pipeline)
       throws IOException {
+    return getContainerFromPipeline(pipeline, null);
+  }
+
+  private ContainerInfo getContainerFromPipeline(Pipeline pipeline,
+      StorageTier storageTier) throws IOException {
     // Assume the container is still open if the below method returns it. On
     // container FINALIZE, ContainerManager will remove the container from the
     // pipeline list in PipelineManager. Finalize can be triggered by a DN
@@ -263,12 +360,22 @@ public class WritableECContainerProvider
     // on a stale / dead node event (via close pipeline).
     NavigableSet<ContainerID> containers =
         pipelineManager.getContainersInPipeline(pipeline.getId());
-    // Assume 1 container per pipeline for EC
     if (containers.isEmpty()) {
       return null;
     }
-    ContainerID containerID = containers.first();
-    return containerManager.getContainer(containerID);
+    if (storageTier == null) {
+      // No storage tier filtering needed
+      ContainerID containerID = containers.first();
+      return containerManager.getContainer(containerID);
+    }
+    // Filter containers by matching storageTier
+    for (ContainerID containerID : containers) {
+      ContainerInfo container = containerManager.getContainer(containerID);
+      if (container.getStorageTier() != null && container.getStorageTier().equals(storageTier)) {
+        return container;
+      }
+    }
+    return null;
   }
 
   private boolean containerHasSpace(ContainerInfo container, long size) {

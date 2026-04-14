@@ -1847,6 +1847,7 @@ message MultipartUploadListPartsResponse {
     optional bool isTruncated = 5;
     repeated PartInfo partsList = 6;
     optional hadoop.hdds.ECReplicationConfig ecReplicationConfig = 7;
+    optional hadoop.hdds.StoragePolicyProto storagePolicy = 8;
 }
 
 message ListMultipartUploadsRequest {

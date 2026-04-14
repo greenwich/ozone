@@ -25,6 +25,7 @@ import static org.apache.hadoop.ozone.container.diskbalancer.DiskBalancerVolumeC
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -33,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.fs.SpaceUsageSource;
 import org.apache.hadoop.hdds.scm.container.ContainerID;
 import org.apache.hadoop.ozone.container.common.impl.ContainerData;
@@ -80,70 +82,115 @@ public class DefaultContainerChoosingPolicy implements ContainerChoosingPolicy {
         return null; // Can't balance with less than 2 volumes.
       }
 
-      // Calculate usages and sort in ascending order of utilization (once)
-      // Use storage ID as secondary sort for deterministic ordering when utilizations are equal
-      final List<VolumeFixedUsage> volumeUsages = allVolumes.stream()
+      // Group volumes by StorageType and find the best candidate across all types.
+      // Disk balancing only moves containers between volumes of the same StorageType.
+      final List<VolumeFixedUsage> allVolumeUsages = allVolumes.stream()
           .map(v -> newVolumeFixedUsage(v, deltaMap))
-          .sorted(Comparator.comparingDouble(VolumeFixedUsage::getUtilization)
-              .thenComparing(v -> v.getVolume().getStorageID()))
           .collect(Collectors.toList());
 
-      // Calculate ideal usage and threshold range (once)
-      final double idealUsage = getIdealUsage(volumeUsages);
-      final double actualThreshold = thresholdPercentage / 100.0;
-      final double lowerThreshold = idealUsage - actualThreshold;
-      final double upperThreshold = idealUsage + actualThreshold;
+      // Find the StorageType group with the largest utilization spread
+      ContainerCandidate bestCandidate = null;
+      double bestUtilizationDiff = 0;
 
-      if (LOG.isDebugEnabled()) {
-        logVolumeBalancingState(volumeUsages, idealUsage, thresholdPercentage,
-            lowerThreshold, upperThreshold, deltaMap);
-      }
+      Map<StorageType, List<VolumeFixedUsage>> volumesByType = allVolumeUsages.stream()
+          .collect(Collectors.groupingBy(v -> v.getVolume().getStorageType()));
 
-      // Get highest and lowest utilization volumes
-      final VolumeFixedUsage highestUsage = volumeUsages.get(volumeUsages.size() - 1);
-      final VolumeFixedUsage lowestUsage = volumeUsages.get(0);
+      for (Map.Entry<StorageType, List<VolumeFixedUsage>> entry : volumesByType.entrySet()) {
+        List<VolumeFixedUsage> typeVolumes = entry.getValue();
+        if (typeVolumes.size() < 2) {
+          continue; // Need at least 2 volumes of the same type to balance
+        }
 
-      // Only return null if highest is below upper threshold AND lowest is above lower threshold
-      if (highestUsage.getUtilization() < upperThreshold &&
-          lowestUsage.getUtilization() > lowerThreshold) {
-        return null;
-      }
-
-      // Determine source volume: highest utilization volume
-      final VolumeFixedUsage srcUsage = highestUsage;
-      final HddsVolume src = srcUsage.getVolume();
-
-      // Find destination volume and container: try each dest with lower utilization than source
-      for (int i = 0; i < volumeUsages.size() - 1; i++) {
-        final VolumeFixedUsage dstUsage = volumeUsages.get(i);
-        final HddsVolume dst = dstUsage.getVolume();
-
-        // Check if destination has lower utilization than source and some usable space
-        if (dstUsage.getUtilization() < srcUsage.getUtilization() &&
-            dstUsage.computeUsableSpace() > 0) {
-          ContainerData containerData = chooseContainer(ozoneContainer,
-              src, dst, dstUsage, inProgressContainerIDs, upperThreshold);
-          if (containerData != null) {
-            long containerSize = containerData.getBytesUsed();
-            dst.incCommittedBytes(containerSize);
-            LOG.debug("Chosen volume pair for disk balancing: source={} (utilization={}), "
-                    + "destination={} (utilization={})",
-                src.getStorageID(), srcUsage.getUtilization(),
-                dst.getStorageID(), dstUsage.getUtilization());
-            return new ContainerCandidate(containerData, src, dst);
+        ContainerCandidate candidate = chooseVolumesAndContainerForType(
+            ozoneContainer, typeVolumes, deltaMap, inProgressContainerIDs,
+            thresholdPercentage, entry.getKey());
+        if (candidate != null) {
+          // Compute the utilization difference for this candidate pair
+          VolumeFixedUsage srcUsage = newVolumeFixedUsage(candidate.getSourceVolume(), deltaMap);
+          VolumeFixedUsage dstUsage = newVolumeFixedUsage(candidate.getDestVolume(), deltaMap);
+          double diff = srcUsage.getUtilization() - dstUsage.getUtilization();
+          if (diff > bestUtilizationDiff) {
+            bestUtilizationDiff = diff;
+            bestCandidate = candidate;
           }
-          LOG.debug("No suitable container found for destination {}, trying next volume.",
-              dst.getStorageID());
-        } else {
-          LOG.debug("Destination volume {} does not have enough space, trying next volume.",
-              dst.getStorageID());
         }
       }
-      LOG.debug("Failed to find appropriate destination volume and container.");
-      return null;
+
+      if (bestCandidate == null) {
+        LOG.debug("Failed to find appropriate destination volume and container across all storage types.");
+      }
+      return bestCandidate;
     } finally {
       lock.unlock();
     }
+  }
+
+  /**
+   * Choose volumes and container for balancing within a single StorageType.
+   */
+  private ContainerCandidate chooseVolumesAndContainerForType(OzoneContainer ozoneContainer,
+      List<VolumeFixedUsage> typeVolumes, Map<HddsVolume, Long> deltaMap,
+      Set<ContainerID> inProgressContainerIDs, double thresholdPercentage,
+      StorageType storageType) {
+
+    // Sort in ascending order of utilization
+    final List<VolumeFixedUsage> volumeUsages = new ArrayList<>(typeVolumes);
+    volumeUsages.sort(Comparator.comparingDouble(VolumeFixedUsage::getUtilization)
+        .thenComparing(v -> v.getVolume().getStorageID()));
+
+    // Calculate ideal usage and threshold range for this storage type
+    final double idealUsage = getIdealUsage(volumeUsages);
+    final double actualThreshold = thresholdPercentage / 100.0;
+    final double lowerThreshold = idealUsage - actualThreshold;
+    final double upperThreshold = idealUsage + actualThreshold;
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Disk balancing for StorageType={}", storageType);
+      logVolumeBalancingState(volumeUsages, idealUsage, thresholdPercentage,
+          lowerThreshold, upperThreshold, deltaMap);
+    }
+
+    // Get highest and lowest utilization volumes
+    final VolumeFixedUsage highestUsage = volumeUsages.get(volumeUsages.size() - 1);
+    final VolumeFixedUsage lowestUsage = volumeUsages.get(0);
+
+    // Only return null if highest is below upper threshold AND lowest is above lower threshold
+    if (highestUsage.getUtilization() < upperThreshold &&
+        lowestUsage.getUtilization() > lowerThreshold) {
+      return null;
+    }
+
+    // Determine source volume: highest utilization volume
+    final VolumeFixedUsage srcUsage = highestUsage;
+    final HddsVolume src = srcUsage.getVolume();
+
+    // Find destination volume and container: try each dest with lower utilization than source
+    for (int i = 0; i < volumeUsages.size() - 1; i++) {
+      final VolumeFixedUsage dstUsage = volumeUsages.get(i);
+      final HddsVolume dst = dstUsage.getVolume();
+
+      // Check if destination has lower utilization than source and some usable space
+      if (dstUsage.getUtilization() < srcUsage.getUtilization() &&
+          dstUsage.computeUsableSpace() > 0) {
+        ContainerData containerData = chooseContainer(ozoneContainer,
+            src, dst, dstUsage, inProgressContainerIDs, upperThreshold);
+        if (containerData != null) {
+          long containerSize = containerData.getBytesUsed();
+          dst.incCommittedBytes(containerSize);
+          LOG.debug("Chosen volume pair for disk balancing (type={}): source={} (utilization={}), "
+                  + "destination={} (utilization={})",
+              storageType, src.getStorageID(), srcUsage.getUtilization(),
+              dst.getStorageID(), dstUsage.getUtilization());
+          return new ContainerCandidate(containerData, src, dst);
+        }
+        LOG.debug("No suitable container found for destination {} (type={}), trying next volume.",
+            dst.getStorageID(), storageType);
+      } else {
+        LOG.debug("Destination volume {} (type={}) does not have enough space, trying next volume.",
+            dst.getStorageID(), storageType);
+      }
+    }
+    return null;
   }
 
   /**

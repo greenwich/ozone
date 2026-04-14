@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.client.BlockID;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
@@ -84,8 +85,33 @@ public class ECBlockOutputStream extends BlockOutputStream {
       ContainerClientMetrics clientMetrics, StreamBufferArgs streamBufferArgs,
       Supplier<ExecutorService> executorServiceSupplier
   ) throws IOException {
+    this(blockID, xceiverClientManager, pipeline, bufferPool, config, token,
+        clientMetrics, streamBufferArgs, executorServiceSupplier, null);
+  }
+
+  /**
+   * Creates a new ECBlockOutputStream.
+   *
+   * @param blockID              block ID
+   * @param xceiverClientManager client manager that controls client
+   * @param pipeline             pipeline where block will be written
+   * @param bufferPool           pool of buffers
+   * @param storageType          storageType of the Block
+   */
+  @SuppressWarnings("checkstyle:ParameterNumber")
+  public ECBlockOutputStream(
+      BlockID blockID,
+      XceiverClientFactory xceiverClientManager,
+      Pipeline pipeline,
+      BufferPool bufferPool,
+      OzoneClientConfig config,
+      Token<? extends TokenIdentifier> token,
+      ContainerClientMetrics clientMetrics, StreamBufferArgs streamBufferArgs,
+      Supplier<ExecutorService> executorServiceSupplier,
+      StorageType storageType) throws IOException {
     super(blockID, -1, xceiverClientManager,
-        pipeline, bufferPool, config, token, clientMetrics, streamBufferArgs, executorServiceSupplier);
+        pipeline, bufferPool, config, token, clientMetrics, streamBufferArgs,
+        executorServiceSupplier, storageType);
     // In EC stream, there will be only one node in pipeline.
     this.datanodeDetails = pipeline.getClosestNode();
   }

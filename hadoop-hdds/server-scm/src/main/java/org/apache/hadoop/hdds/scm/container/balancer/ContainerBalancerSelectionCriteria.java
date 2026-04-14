@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
 import org.apache.hadoop.hdds.protocol.proto.StorageContainerDatanodeProtocolProtos.ContainerReplicaProto;
@@ -104,6 +105,33 @@ public class ContainerBalancerSelectionCriteria {
     Set<ContainerID> containers = setMap.computeIfAbsent(node,
         this::getCandidateContainers);
     return containers != null ? containers : Collections.emptySet();
+  }
+
+  /**
+   * Get the StorageType of a container's replica on a given datanode.
+   * Returns null if the replica is not found or has no StorageType set.
+   * Old containers created before the StoragePolicy feature may have null StorageType,
+   * which is treated as DISK (the default volume type).
+   *
+   * @param containerID the container to check
+   * @param node the datanode holding the replica
+   * @return the StorageType of the replica, or DISK if null
+   */
+  public StorageType getContainerReplicaStorageType(ContainerID containerID,
+      DatanodeDetails node) {
+    try {
+      Set<ContainerReplica> replicas =
+          containerManager.getContainerReplicas(containerID);
+      for (ContainerReplica replica : replicas) {
+        if (replica.getDatanodeDetails().equals(node)) {
+          return replica.getStorageType() != null
+              ? replica.getStorageType() : StorageType.DISK;
+        }
+      }
+    } catch (ContainerNotFoundException e) {
+      LOG.warn("Could not find container {} to get replica StorageType.", containerID, e);
+    }
+    return StorageType.DISK;
   }
 
   /**

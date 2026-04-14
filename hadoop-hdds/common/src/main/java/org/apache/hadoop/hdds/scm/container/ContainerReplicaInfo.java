@@ -19,6 +19,8 @@ package org.apache.hadoop.hdds.scm.container;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import java.util.UUID;
+import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdds.client.StorageTypeUtils;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
 import org.apache.hadoop.hdds.server.JsonUtils;
@@ -38,6 +40,9 @@ public final class ContainerReplicaInfo {
   private int replicaIndex = -1;
   @JsonSerialize(using = JsonUtils.ChecksumSerializer.class)
   private long dataChecksum;
+  private StorageType storageType;
+  private StorageType volumeStorageType;
+  private String containerPath;
 
   public static ContainerReplicaInfo fromProto(
       HddsProtos.SCMContainerReplicaProto proto) {
@@ -52,7 +57,12 @@ public final class ContainerReplicaInfo {
         .setBytesUsed(proto.getBytesUsed())
         .setReplicaIndex(
             proto.hasReplicaIndex() ? (int)proto.getReplicaIndex() : -1)
-        .setDataChecksum(proto.getDataChecksum());
+        .setDataChecksum(proto.getDataChecksum())
+        .setStorageType(!proto.hasStorageType() ? null :
+            StorageTypeUtils.getFromProtobuf(proto.getStorageType()))
+        .setContainerPath(proto.getContainerPath())
+        .setVolumeStorageType(!proto.hasVolumeStorageType() ? null :
+            StorageTypeUtils.getFromProtobuf(proto.getVolumeStorageType()));
     return builder.build();
   }
 
@@ -93,6 +103,18 @@ public final class ContainerReplicaInfo {
 
   public long getDataChecksum() {
     return dataChecksum;
+  }
+
+  public StorageType getStorageType() {
+    return storageType;
+  }
+
+  public StorageType getVolumeStorageType() {
+    return volumeStorageType;
+  }
+
+  public String getContainerPath() {
+    return containerPath;
   }
 
   /**
@@ -144,6 +166,21 @@ public final class ContainerReplicaInfo {
 
     public Builder setDataChecksum(long dataChecksum) {
       subject.dataChecksum = dataChecksum;
+      return this;
+    }
+
+    public Builder setStorageType(StorageType storageType) {
+      subject.storageType = storageType;
+      return this;
+    }
+
+    public Builder setVolumeStorageType(StorageType volumeStorageType) {
+      subject.volumeStorageType = volumeStorageType;
+      return this;
+    }
+
+    public Builder setContainerPath(String containerPath) {
+      subject.containerPath = containerPath;
       return this;
     }
 

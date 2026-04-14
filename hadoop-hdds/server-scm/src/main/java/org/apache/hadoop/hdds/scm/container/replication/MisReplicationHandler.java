@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.conf.StorageUnit;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
@@ -100,7 +102,8 @@ public abstract class MisReplicationHandler implements
   protected abstract int sendReplicateCommands(
       ContainerInfo containerInfo,
       Set<ContainerReplica> replicasToBeReplicated,
-      List<DatanodeDetails> sources, List<DatanodeDetails> targetDns)
+      List<DatanodeDetails> sources, List<DatanodeDetails> targetDns,
+      StorageType targetStorageType)
       throws CommandTargetOverloadedException, NotLeaderException;
 
   @Override
@@ -153,17 +156,19 @@ public abstract class MisReplicationHandler implements
 
     int requiredNodes = replicasToBeReplicated.size();
 
-    List<DatanodeDetails> targetDatanodes = ReplicationManagerUtil
-        .getTargetDatanodes(containerPlacement, requiredNodes,
+    Pair<StorageType, List<DatanodeDetails>> storageTypeWithDns = ReplicationManagerUtil
+        .getTargetDatanodesWithFallback(containerPlacement, requiredNodes,
             excludedAndUsedNodes.getUsedNodes(),
             excludedAndUsedNodes.getExcludedNodes(), currentContainerSize,
-            container);
+            container, container.getStorageTier());
+    StorageType finalStorageType = storageTypeWithDns.getKey();
+    final List<DatanodeDetails> targetDatanodes = storageTypeWithDns.getValue();
     List<DatanodeDetails> availableSources = sources.stream()
         .map(ContainerReplica::getDatanodeDetails)
         .collect(Collectors.toList());
 
     int count = sendReplicateCommands(container, replicasToBeReplicated,
-        availableSources, targetDatanodes);
+        availableSources, targetDatanodes, finalStorageType);
 
     int found = targetDatanodes.size();
     if (found < requiredNodes) {

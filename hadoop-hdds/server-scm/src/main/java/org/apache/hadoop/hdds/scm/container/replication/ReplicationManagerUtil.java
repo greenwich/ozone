@@ -28,6 +28,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdds.client.StorageTier;
+import org.apache.hadoop.hdds.client.StorageTierUtil;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.DatanodeID;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
@@ -115,6 +119,79 @@ public final class ReplicationManagerUtil {
             "Excluded Nodes: %s.", policy.getClass(), requiredNodes, dataSizeRequired, container,
         formatDatanodeDetails(usedNodes), formatDatanodeDetails(excludedNodes)),
         SCMException.ResultCodes.FAILED_TO_FIND_SUITABLE_NODE);
+  }
+
+  /**
+   * Using the passed placement policy attempt to select a list of datanodes
+   * with the specified StorageType. If storageType is null, delegates to the
+   * non-StorageType version.
+   */
+  public static List<DatanodeDetails> getTargetDatanodes(PlacementPolicy policy,
+      int requiredNodes, List<DatanodeDetails> usedNodes,
+      List<DatanodeDetails> excludedNodes, long defaultContainerSize,
+      ContainerInfo container, StorageType storageType) throws SCMException {
+
+    final long dataSizeRequired =
+        HddsServerUtil.requiredReplicationSpace(Math.max(container.getUsedBytes(), defaultContainerSize));
+
+    int mutableRequiredNodes = requiredNodes;
+    while (mutableRequiredNodes > 0) {
+      try {
+        if (usedNodes == null) {
+          return policy.chooseDatanodes(excludedNodes, null,
+              mutableRequiredNodes, 0, dataSizeRequired, storageType);
+        } else {
+          return policy.chooseDatanodes(usedNodes, excludedNodes, null,
+              mutableRequiredNodes, 0, dataSizeRequired, storageType);
+        }
+      } catch (IOException e) {
+        LOG.debug("Placement policy was not able to return {} nodes for " +
+            "container {} with storageType {}.",
+            mutableRequiredNodes, container.getContainerID(), storageType, e);
+        mutableRequiredNodes--;
+      }
+    }
+    throw new SCMException(String.format("Placement Policy: %s did not return"
+            + " any nodes. Number of required Nodes %d, Data size Required: %d, StorageType: %s."
+            + " Container: %s, Used Nodes %s, Excluded Nodes: %s.",
+        policy.getClass(), requiredNodes, dataSizeRequired, storageType, container,
+        formatDatanodeDetails(usedNodes), formatDatanodeDetails(excludedNodes)),
+        SCMException.ResultCodes.FAILED_TO_FIND_SUITABLE_NODE);
+  }
+
+  /**
+   * Tries to find target datanodes with the StorageTier's primary StorageType.
+   * If that fails, falls back to the default StorageType (DISK).
+   * Returns a Pair of (actualStorageType, datanodes).
+   */
+  public static Pair<StorageType, List<DatanodeDetails>> getTargetDatanodesWithFallback(
+      PlacementPolicy policy, int requiredNodes,
+      List<DatanodeDetails> usedNodes, List<DatanodeDetails> excludedNodes,
+      long defaultContainerSize, ContainerInfo container,
+      StorageTier storageTier) throws IOException {
+    StorageType storageType = null;
+    if (storageTier != null && storageTier != StorageTier.EMPTY) {
+      storageType = StorageTierUtil.getStorageTypeForUniformStorageTier(storageTier);
+    }
+
+    // First attempt: try with the container's own StorageType
+    try {
+      List<DatanodeDetails> targets = getTargetDatanodes(
+          policy, requiredNodes, usedNodes, excludedNodes,
+          defaultContainerSize, container, storageType);
+      return Pair.of(storageType, targets);
+    } catch (SCMException e) {
+      if (storageType != null && storageType != StorageType.DISK) {
+        LOG.warn("Failed to find {} nodes with StorageType {} for container {}. " +
+            "Falling back to DISK.", requiredNodes, storageType, container.getContainerID());
+        // Fallback to DISK
+        List<DatanodeDetails> targets = getTargetDatanodes(
+            policy, requiredNodes, usedNodes, excludedNodes,
+            defaultContainerSize, container, StorageType.DISK);
+        return Pair.of(StorageType.DISK, targets);
+      }
+      throw e;
+    }
   }
 
   /**

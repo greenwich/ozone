@@ -31,6 +31,15 @@ import org.apache.hadoop.ozone.container.common.volume.HddsVolume;
 public interface VolumeChoosingPolicy {
 
   /**
+   * Set the default StorageType for the policy.
+   *
+   * @param storageType default StorageType to be used by the policy.
+   */
+  default void init(StorageType storageType) {
+    // default no-op
+  }
+
+  /**
    * Choose a volume to place a container,
    * given a list of volumes and the max container size sought for storage.
    *

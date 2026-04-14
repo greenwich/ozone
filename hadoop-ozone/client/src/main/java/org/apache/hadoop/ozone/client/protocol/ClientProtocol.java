@@ -404,6 +404,14 @@ public interface ClientProtocol {
        Map<String, String> metadata) throws IOException;
 
   /**
+   * Rewrite an existing key with a specific StoragePolicy.
+   */
+  @SuppressWarnings("checkstyle:ParameterNumber")
+  OzoneOutputStream rewriteKey(String volumeName, String bucketName, String keyName,
+      long size, long existingKeyGeneration, ReplicationConfig replicationConfig,
+      Map<String, String> metadata, StoragePolicy storagePolicy) throws IOException;
+
+  /**
    * Creates a key only if it does not exist (S3 If-None-Match: * semantics).
    *
    * @param volumeName Name of the Volume
@@ -506,6 +514,21 @@ public interface ClientProtocol {
   OzoneDataStreamOutput createStreamKey(String volumeName, String bucketName,
       String keyName, long size, ReplicationConfig replicationConfig,
       Map<String, String> metadata, Map<String, String> tags)
+      throws IOException;
+
+  /**
+   * Writes a key in an existing bucket with a specific StoragePolicy.
+   * @param volumeName Name of the Volume
+   * @param bucketName Name of the Bucket
+   * @param keyName Name of the Key
+   * @param size Size of the data
+   * @param metadata custom key value metadata
+   * @param storagePolicy StoragePolicy of the key.
+   * @return {@link OzoneDataStreamOutput}
+   */
+  OzoneDataStreamOutput createStreamKey(String volumeName, String bucketName,
+      String keyName, long size, ReplicationConfig replicationConfig,
+      Map<String, String> metadata, StoragePolicy storagePolicy)
       throws IOException;
 
   /**
@@ -1114,6 +1137,16 @@ public interface ClientProtocol {
   OzoneDataStreamOutput createStreamFile(String volumeName, String bucketName,
       String keyName, long size, ReplicationConfig replicationConfig,
       boolean overWrite, boolean recursive) throws IOException;
+
+  /**
+   * Creates an output stream for writing to a file using streaming write with a StoragePolicy.
+   */
+  @SuppressWarnings("checkstyle:parameternumber")
+  default OzoneDataStreamOutput createStreamFile(String volumeName, String bucketName,
+      String keyName, long size, ReplicationConfig replicationConfig,
+      boolean overWrite, boolean recursive, StoragePolicy storagePolicy) throws IOException {
+    return createStreamFile(volumeName, bucketName, keyName, size, replicationConfig, overWrite, recursive);
+  }
 
 
   /**

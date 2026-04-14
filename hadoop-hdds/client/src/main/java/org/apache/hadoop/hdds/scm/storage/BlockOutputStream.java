@@ -41,7 +41,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.client.BlockID;
+import org.apache.hadoop.hdds.client.StorageTypeUtils;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.BlockData;
@@ -179,6 +181,33 @@ public class BlockOutputStream extends OutputStream {
       ContainerClientMetrics clientMetrics, StreamBufferArgs streamBufferArgs,
       Supplier<ExecutorService> blockOutputStreamResourceProvider
   ) throws IOException {
+    this(blockID, blockSize, xceiverClientManager, pipeline, bufferPool,
+        config, token, clientMetrics, streamBufferArgs,
+        blockOutputStreamResourceProvider, null);
+  }
+
+  /**
+   * Creates a new BlockOutputStream.
+   *
+   * @param blockID              block ID
+   * @param xceiverClientManager client manager that controls client
+   * @param pipeline             pipeline where block will be written
+   * @param bufferPool           pool of buffers
+   * @param storageType          storageType of the Block
+   */
+  @SuppressWarnings("checkstyle:ParameterNumber")
+  public BlockOutputStream(
+      BlockID blockID,
+      long blockSize,
+      XceiverClientFactory xceiverClientManager,
+      Pipeline pipeline,
+      BufferPool bufferPool,
+      OzoneClientConfig config,
+      Token<? extends TokenIdentifier> token,
+      ContainerClientMetrics clientMetrics, StreamBufferArgs streamBufferArgs,
+      Supplier<ExecutorService> blockOutputStreamResourceProvider,
+      StorageType storageType
+  ) throws IOException {
     this.xceiverClientFactory = xceiverClientManager;
     this.config = config;
     this.blockID = new AtomicReference<>(blockID);
@@ -194,6 +223,9 @@ public class BlockOutputStream extends OutputStream {
             .setBlockCommitSequenceId(blockID.getBlockCommitSequenceId());
     if (replicationIndex > 0) {
       blkIDBuilder.setReplicaIndex(replicationIndex);
+    }
+    if (storageType != null) {
+      blkIDBuilder.setStorageTypeID(StorageTypeUtils.getID(storageType));
     }
     this.containerBlockData = BlockData.newBuilder().setBlockID(
         blkIDBuilder.build()).addMetadata(keyValue);

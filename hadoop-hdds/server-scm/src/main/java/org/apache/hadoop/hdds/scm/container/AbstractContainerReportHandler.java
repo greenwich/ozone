@@ -396,6 +396,13 @@ abstract class AbstractContainerReportHandler {
       replicaBuilder.setStorageType(
           StorageTypeUtils.getFromProtobuf(replicaProto.getStorageType()));
     }
+    if (replicaProto.hasContainerPath()) {
+      replicaBuilder.setContainerPath(replicaProto.getContainerPath());
+    }
+    if (replicaProto.hasVolumeStorageType()) {
+      replicaBuilder.setVolumeStorageType(
+          StorageTypeUtils.getFromProtobuf(replicaProto.getVolumeStorageType()));
+    }
     final ContainerReplica replica = replicaBuilder.build();
 
     if (replica.getState().equals(State.DELETED)) {

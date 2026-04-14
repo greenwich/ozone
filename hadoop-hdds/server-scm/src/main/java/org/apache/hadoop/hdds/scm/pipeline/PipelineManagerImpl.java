@@ -213,13 +213,21 @@ public class PipelineManagerImpl implements PipelineManager {
   public Pipeline buildECPipeline(ReplicationConfig replicationConfig,
       List<DatanodeDetails> excludedNodes, List<DatanodeDetails> favoredNodes)
       throws IOException {
+    return buildECPipeline(replicationConfig, excludedNodes, favoredNodes,
+        StorageTier.getDefaultTier());
+  }
+
+  @Override
+  public Pipeline buildECPipeline(ReplicationConfig replicationConfig,
+      List<DatanodeDetails> excludedNodes, List<DatanodeDetails> favoredNodes,
+      StorageTier storageTier)
+      throws IOException {
     if (replicationConfig.getReplicationType() != ReplicationType.EC) {
       throw new IllegalArgumentException("Replication type must be EC");
     }
-    // TODO StoragePolicy Support EC
     checkIfPipelineCreationIsAllowed(replicationConfig);
     return pipelineFactory.create(replicationConfig, excludedNodes,
-        favoredNodes, StorageTier.getDefaultTier());
+        favoredNodes, storageTier);
   }
 
   /**

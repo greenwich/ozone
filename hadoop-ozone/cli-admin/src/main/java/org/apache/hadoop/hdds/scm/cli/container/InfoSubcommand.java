@@ -61,6 +61,11 @@ public class InfoSubcommand extends ScmSubcommand {
   @CommandLine.Mixin
   private ContainerIDParameters containerList;
 
+  @CommandLine.Option(names = { "--with-storagetype" },
+      defaultValue = "false",
+      description = "output Container and Volume StorageType info")
+  private static boolean withStorageType;
+
   private boolean multiContainer = false;
 
   @Override
@@ -193,6 +198,13 @@ public class InfoSubcommand extends ScmSubcommand {
     sb.append(" SequenceId: ").append(replica.getSequenceId()).append(';')
         .append(" Origin: ").append(replica.getPlaceOfBirth().toString()).append(';')
         .append(" Location: ").append(buildDatanodeDetails(replica.getDatanodeDetails()));
+    if (replica.getContainerPath() != null) {
+      sb.append(" ContainerPath: ").append(replica.getContainerPath()).append(';');
+    }
+    if (withStorageType) {
+      sb.append(" ContainerStorageType: ").append(replica.getStorageType()).append(';');
+      sb.append(" VolumeStorageType: ").append(replica.getVolumeStorageType()).append(';');
+    }
     return sb.toString();
   }
 

@@ -33,8 +33,11 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hadoop.conf.StorageUnit;
+import com.google.common.base.Strings;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
+import org.apache.hadoop.hdds.client.OzoneStoragePolicy;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.ozone.OzoneConsts;
 import org.apache.hadoop.ozone.client.OzoneBucket;
@@ -61,6 +64,10 @@ public class PutKeyHandler extends KeyHandler {
 
   @Option(names = "--stream")
   private boolean stream;
+
+  @Option(names = {"--storagepolicy", "-sp"},
+      description = "Storage Policy String values: HOT, WARM, COLD or null")
+  private String storagePolicyStr;
 
   @Mixin
   private ShellReplicationOptions replication;
@@ -101,47 +108,67 @@ public class PutKeyHandler extends KeyHandler {
     int chunkSize = (int) getConf().getStorageSize(OZONE_SCM_CHUNK_SIZE_KEY,
         OZONE_SCM_CHUNK_SIZE_DEFAULT, StorageUnit.BYTES);
 
+    StoragePolicy storagePolicy = null;
+    if (!Strings.isNullOrEmpty(storagePolicyStr)) {
+      try {
+        storagePolicy = OzoneStoragePolicy.valueOf(
+            storagePolicyStr.toUpperCase());
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException(
+            "Invalid storage policy: " + storagePolicyStr
+            + ". Allowed values are: HOT, WARM, COLD, or null.");
+      }
+    }
+
     if (stream) {
       stream(dataFile, bucket, keyName, keyMetadata,
-          replicationConfig, chunkSize);
+          replicationConfig, chunkSize, storagePolicy);
     } else {
       async(dataFile, bucket, keyName, keyMetadata,
-          replicationConfig, chunkSize);
+          replicationConfig, chunkSize, storagePolicy);
     }
   }
 
   private void async(
       File dataFile, OzoneBucket bucket,
       String keyName, Map<String, String> keyMetadata,
-      ReplicationConfig replicationConfig, int chunkSize)
-      throws IOException {
+      ReplicationConfig replicationConfig, int chunkSize,
+      StoragePolicy storagePolicy) throws IOException {
     if (isVerbose()) {
       out().println("API: async");
     }
     try (InputStream input = Files.newInputStream(dataFile.toPath());
-         OutputStream output = createOrReplaceKey(bucket, keyName, dataFile.length(), keyMetadata, replicationConfig)) {
+         OutputStream output = createOrReplaceKey(bucket, keyName,
+             dataFile.length(), keyMetadata, replicationConfig,
+             storagePolicy)) {
       IOUtils.copyBytes(input, output, chunkSize);
     }
   }
 
-  private OzoneOutputStream createOrReplaceKey(OzoneBucket bucket, String keyName,
-      long size, Map<String, String> keyMetadata, ReplicationConfig replicationConfig
-  ) throws IOException {
+  private OzoneOutputStream createOrReplaceKey(OzoneBucket bucket,
+      String keyName, long size, Map<String, String> keyMetadata,
+      ReplicationConfig replicationConfig, StoragePolicy storagePolicy)
+      throws IOException {
     if (expectedGeneration != null) {
       final long existingGeneration = expectedGeneration;
       Preconditions.checkArgument(existingGeneration > 0,
           "expectedGeneration must be positive, but was %s", existingGeneration);
-      return bucket.rewriteKey(keyName, size, existingGeneration, replicationConfig, keyMetadata);
+      return bucket.rewriteKey(keyName, size, existingGeneration,
+          replicationConfig, keyMetadata);
     }
 
+    if (storagePolicy != null) {
+      return bucket.createKey(keyName, size, replicationConfig, keyMetadata,
+          new HashMap<>(), storagePolicy);
+    }
     return bucket.createKey(keyName, size, replicationConfig, keyMetadata);
   }
 
   private void stream(
       File dataFile, OzoneBucket bucket,
       String keyName, Map<String, String> keyMetadata,
-      ReplicationConfig replicationConfig, int chunkSize)
-      throws IOException {
+      ReplicationConfig replicationConfig, int chunkSize,
+      StoragePolicy storagePolicy) throws IOException {
     if (isVerbose()) {
       out().println("API: streaming");
     }

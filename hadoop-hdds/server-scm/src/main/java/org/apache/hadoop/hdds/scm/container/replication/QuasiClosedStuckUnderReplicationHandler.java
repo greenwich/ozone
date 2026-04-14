@@ -120,7 +120,7 @@ public class QuasiClosedStuckUnderReplicationHandler implements UnhealthyReplica
       for (DatanodeDetails target : targets) {
         try {
           replicationManager.sendThrottledReplicationCommand(
-              containerInfo, sourceDatanodes, target, 0);
+              containerInfo, sourceDatanodes, target, 0, null);
           // Add the pending op, so we exclude the node for subsequent origins
           mutablePendingOps.add(new ContainerReplicaOp(
               ContainerReplicaOp.PendingOpType.ADD, target, 0,

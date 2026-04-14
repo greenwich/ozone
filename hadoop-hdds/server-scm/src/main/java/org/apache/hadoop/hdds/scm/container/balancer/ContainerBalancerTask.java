@@ -678,9 +678,10 @@ public class ContainerBalancerTask implements Runnable {
       selectionCriteria.addToExcludeDueToFailContainers(moveSelection.getContainerID());
       return false;
     }
-    LOG.info("ContainerBalancer is trying to move container {} with size " +
+    LOG.info("ContainerBalancer is trying to move container {} StorageType {} with size " +
             "{}B from source datanode {} to target datanode {}",
         containerID.toString(),
+        moveSelection.getStorageType(),
         containerInfo.getUsedBytes(),
         source,
         moveSelection.getTargetNode());

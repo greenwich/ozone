@@ -38,11 +38,18 @@ import java.util.Objects;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
+import static org.apache.hadoop.ozone.OzoneConfigKeys.OZONE_S3_DEFAULT_STORAGE_POLICY_DEFAULT;
+import static org.apache.hadoop.ozone.OzoneConfigKeys.OZONE_S3_DEFAULT_STORAGE_POLICY_KEY;
+import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.INVALID_ARGUMENT;
+
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StoragePolicy;
+import org.apache.hadoop.hdds.conf.OzoneConfiguration;
+import org.apache.hadoop.ozone.client.OzoneBucket;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
 
@@ -259,6 +266,46 @@ public final class S3Utils {
       }
     } catch (IllegalArgumentException ex) {
       throw newError(BAD_DIGEST, resource);
+    }
+  }
+
+  /**
+   * Determines the storagePolicy for an S3 bucket based on the provided
+   * S3 storageClass, bucket and configuration.
+   *
+   * <p>Priority order:</p>
+   * <ol>
+   *   <li>If s3 storageClass is specified, use it to determine the storage policy.</li>
+   *   <li>If the bucket has a storage policy set, use the bucket's storage policy.</li>
+   *   <li>Use the storage policy from the configuration ({@code OZONE_S3_DEFAULT_STORAGE_POLICY_KEY}).</li>
+   *   <li>If none of the above apply, return null.</li>
+   * </ol>
+   *
+   * @param s3StorageClass the S3 storageClass specified in the request (can be null or empty).
+   * @param configuration the Ozone configuration.
+   * @param ozoneBucket the Ozone bucket.
+   * @return the resolved {@link StoragePolicy}, or null if no applicable policy is found.
+   * @throws OS3Exception if the storage class is invalid.
+   */
+  public static StoragePolicy getS3StoragePolicy(String s3StorageClass,
+      OzoneConfiguration configuration, OzoneBucket ozoneBucket)
+      throws OS3Exception {
+    try {
+      if (StringUtils.isNotEmpty(s3StorageClass)) {
+        return S3StorageClass.fromS3StorageClass(s3StorageClass).getStoragePolicy();
+      }
+      if (ozoneBucket.getStoragePolicy() != null) {
+        return ozoneBucket.getStoragePolicy();
+      }
+      String defaultStorageType = configuration.get(
+          OZONE_S3_DEFAULT_STORAGE_POLICY_KEY,
+          OZONE_S3_DEFAULT_STORAGE_POLICY_DEFAULT);
+      if (StringUtils.isNotEmpty(defaultStorageType)) {
+        return S3StorageClass.fromS3StorageClass(defaultStorageType).getStoragePolicy();
+      }
+      return null;
+    } catch (IllegalArgumentException ex) {
+      throw newError(INVALID_ARGUMENT, s3StorageClass, ex);
     }
   }
 

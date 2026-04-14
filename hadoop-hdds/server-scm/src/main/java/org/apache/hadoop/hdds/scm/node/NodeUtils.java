@@ -49,6 +49,23 @@ public final class NodeUtils {
    * @param nodeManager the node manager to look up datanode info
    * @return list of supported StorageTiers
    */
+  /**
+   * Returns the set of StorageTypes available on a single datanode.
+   */
+  public static Set<StorageType> getDatanodesStorageTypes(
+      DatanodeDetails dn, NodeManager nodeManager) {
+    Set<StorageType> storageTypes = new HashSet<>();
+    DatanodeInfo datanodeInfo = nodeManager.getDatanodeInfo(dn);
+    if (datanodeInfo == null) {
+      throw new IllegalStateException("Cannot get Datanode : " + dn.getUuidString() + " Info");
+    }
+    List<StorageReportProto> storageReportProtos = datanodeInfo.getStorageReports();
+    for (StorageReportProto storageReportProto : storageReportProtos) {
+      storageTypes.add(getStorageTypeFromStorageReportProto(storageReportProto, datanodeInfo));
+    }
+    return storageTypes;
+  }
+
   public static List<StorageTier> getDatanodesStorageTypes(
       List<DatanodeDetails> dns, NodeManager nodeManager) {
     List<Set<StorageType>> dnStorageTypes = new ArrayList<>();

@@ -17,6 +17,8 @@
 
 package org.apache.hadoop.ozone.container.replication;
 
+import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdds.client.StorageTypeUtils;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.SendContainerRequest;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 import org.apache.ratis.thirdparty.io.grpc.stub.CallStreamObserver;
@@ -38,17 +40,30 @@ class SendContainerOutputStream extends GrpcOutputStream<SendContainerRequest> {
     this.size = size;
   }
 
+  SendContainerOutputStream(
+      CallStreamObserver<SendContainerRequest> streamObserver,
+      long containerId, int bufferSize, CopyContainerCompression compression,
+      Long size, StorageType storageType) {
+    super(streamObserver, containerId, bufferSize, storageType);
+    this.compression = compression;
+    this.size = size;
+  }
+
   @Override
-  protected void sendPart(boolean eof, int length, ByteString data) {
+  protected void sendPart(boolean eof, int length, ByteString data,
+      StorageType storageType) {
     SendContainerRequest.Builder requestBuilder = SendContainerRequest.newBuilder()
         .setContainerID(getContainerId())
         .setData(data)
         .setOffset(getWrittenBytes())
         .setCompression(compression.toProto());
-    
+
     // Include container size in the first request
     if (getWrittenBytes() == 0 && size != null) {
       requestBuilder.setSize(size);
+    }
+    if (storageType != null) {
+      requestBuilder.setStorageTypeID(StorageTypeUtils.getID(storageType));
     }
     getStreamObserver().onNext(requestBuilder.build());
   }

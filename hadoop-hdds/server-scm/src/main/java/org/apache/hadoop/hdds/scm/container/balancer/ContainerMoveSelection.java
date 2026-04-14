@@ -18,22 +18,33 @@
 package org.apache.hadoop.hdds.scm.container.balancer;
 
 import java.util.Objects;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.scm.container.ContainerID;
 
 /**
  * This class represents a target datanode and the container to be moved from
- * a source to that target.
+ * a source to that target. Optionally tracks the StorageType of the container
+ * replica being moved, to ensure balancing happens within the same type.
  */
 public class ContainerMoveSelection {
   private DatanodeDetails targetNode;
   private ContainerID containerID;
+  private StorageType storageType;
 
   public ContainerMoveSelection(
       DatanodeDetails targetNode,
       ContainerID containerID) {
+    this(targetNode, containerID, null);
+  }
+
+  public ContainerMoveSelection(
+      DatanodeDetails targetNode,
+      ContainerID containerID,
+      StorageType storageType) {
     this.targetNode = targetNode;
     this.containerID = containerID;
+    this.storageType = storageType;
   }
 
   public DatanodeDetails getTargetNode() {
@@ -52,6 +63,14 @@ public class ContainerMoveSelection {
   public void setContainerID(
       ContainerID containerID) {
     this.containerID = containerID;
+  }
+
+  public StorageType getStorageType() {
+    return storageType;
+  }
+
+  public void setStorageType(StorageType storageType) {
+    this.storageType = storageType;
   }
 
   @Override

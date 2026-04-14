@@ -90,7 +90,8 @@ public class ContainerImporter {
   }
 
   public void importContainer(long containerID, Path tarFilePath,
-      HddsVolume targetVolume, CopyContainerCompression compression)
+      HddsVolume targetVolume, CopyContainerCompression compression,
+      @Nullable StorageType storageType)
       throws IOException {
     if (!importContainerProgress.add(containerID)) {
       deleteFileQuietely(tarFilePath);
@@ -118,6 +119,7 @@ public class ContainerImporter {
       }
       ContainerUtils.verifyContainerFileChecksum(containerData, conf);
       containerData.setVolume(targetVolume);
+      containerData.setStorageType(storageType);
       // lastDataScanTime should be cleared for an imported container
       containerData.setDataScanTimestamp(null);
 
@@ -146,6 +148,10 @@ public class ContainerImporter {
       LOG.error("Got exception while deleting temporary container file: "
           + tarFilePath.toAbsolutePath(), ex);
     }
+  }
+
+  public HddsVolume chooseNextVolume(@Nullable StorageType storageType) throws IOException {
+    return chooseNextVolume(getDefaultReplicationSpace(), storageType);
   }
 
   HddsVolume chooseNextVolume(long spaceToReserve) throws IOException {

@@ -53,8 +53,8 @@ public class PushReplicator implements ContainerReplicator {
     CopyContainerCompression compression =
         CopyContainerCompression.getConf(conf);
 
-    LOG.info("Starting replication of container {} to {} using {}",
-        containerID, target, compression);
+    LOG.info("Starting replication of container {} StorageType {} to {} using {}",
+        containerID, task.getTargetVolumeStorageType(), target, compression);
 
     source.prepare(containerID);
 

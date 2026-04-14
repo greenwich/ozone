@@ -560,8 +560,20 @@ public final class ContainerProtocolCalls  {
   public static void createRecoveringContainer(XceiverClientSpi client,
       long containerID, String encodedToken, int replicaIndex)
       throws IOException {
+    createRecoveringContainer(client, containerID, encodedToken,
+        replicaIndex, null);
+  }
+
+  /**
+   * createRecoveringContainer call with storageType.
+   */
+  @InterfaceStability.Evolving
+  public static void createRecoveringContainer(XceiverClientSpi client,
+      long containerID, String encodedToken, int replicaIndex,
+      StorageType storageType) throws IOException {
     createContainer(client, containerID, encodedToken,
-        ContainerProtos.ContainerDataProto.State.RECOVERING, replicaIndex);
+        ContainerProtos.ContainerDataProto.State.RECOVERING, replicaIndex,
+        storageType);
   }
 
   /**
@@ -572,7 +584,7 @@ public final class ContainerProtocolCalls  {
    */
   public static void createContainer(XceiverClientSpi client, long containerID,
       String encodedToken) throws IOException {
-    createContainer(client, containerID, encodedToken, null, 0);
+    createContainer(client, containerID, encodedToken, null, 0, null);
   }
 
   /**
@@ -587,6 +599,23 @@ public final class ContainerProtocolCalls  {
       long containerID, String encodedToken,
       ContainerProtos.ContainerDataProto.State state, int replicaIndex)
       throws IOException {
+    createContainer(client, containerID, encodedToken, state, replicaIndex,
+        null);
+  }
+
+  /**
+   * createContainer call that creates a container on the datanode.
+   * @param client  - client
+   * @param containerID - ID of container
+   * @param encodedToken - encodedToken if security is enabled
+   * @param state - state of the container
+   * @param replicaIndex - index position of the container replica
+   * @param storageType - storageType of the container
+   */
+  public static void createContainer(XceiverClientSpi client,
+      long containerID, String encodedToken,
+      ContainerProtos.ContainerDataProto.State state, int replicaIndex,
+      StorageType storageType) throws IOException {
     ContainerProtos.CreateContainerRequestProto.Builder createRequest =
         ContainerProtos.CreateContainerRequestProto.newBuilder();
     createRequest
@@ -596,6 +625,10 @@ public final class ContainerProtocolCalls  {
     }
     if (replicaIndex > 0) {
       createRequest.setReplicaIndex(replicaIndex);
+    }
+    if (storageType != null) {
+      createRequest.setStorageTypeID(
+          StorageTypeUtils.getID(storageType));
     }
 
     String id = client.getPipeline().getFirstNode().getUuidString();

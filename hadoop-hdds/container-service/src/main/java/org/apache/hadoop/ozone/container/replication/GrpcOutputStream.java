@@ -22,6 +22,7 @@ import jakarta.annotation.Nonnull;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 import org.apache.ratis.thirdparty.io.grpc.stub.CallStreamObserver;
 import org.apache.ratis.thirdparty.io.grpc.stub.StreamObserver;
@@ -52,12 +53,24 @@ abstract class GrpcOutputStream<T> extends OutputStream {
 
   private long writtenBytes;
 
+  private final StorageType storageType;
+
   GrpcOutputStream(CallStreamObserver<T> streamObserver,
       long containerId, int bufferSize) {
+    this(streamObserver, containerId, bufferSize, null);
+  }
+
+  GrpcOutputStream(CallStreamObserver<T> streamObserver,
+      long containerId, int bufferSize, StorageType storageType) {
     this.streamObserver = streamObserver;
     this.containerId = containerId;
     this.bufferSize = bufferSize;
+    this.storageType = storageType;
     buffer = ByteString.newOutput(bufferSize);
+  }
+
+  protected StorageType getStorageType() {
+    return storageType;
   }
 
   @Override
@@ -138,9 +151,9 @@ abstract class GrpcOutputStream<T> extends OutputStream {
     int length = buffer.size();
     if (length > 0) {
       ByteString data = buffer.toByteString();
-      LOG.debug("Sending {} bytes (of type {}) for container {}",
-          length, data.getClass().getSimpleName(), containerId);
-      sendPart(eof, length, data);
+      LOG.debug("Sending {} bytes (of type {}) for container {} StorageType {}",
+          length, data.getClass().getSimpleName(), containerId, storageType);
+      sendPart(eof, length, data, storageType);
       writtenBytes += length;
       buffer.reset();
     }
@@ -174,6 +187,7 @@ abstract class GrpcOutputStream<T> extends OutputStream {
     }
   }
 
-  protected abstract void sendPart(boolean eof, int length, ByteString data);
+  protected abstract void sendPart(boolean eof, int length, ByteString data,
+      StorageType storageType);
 
 }

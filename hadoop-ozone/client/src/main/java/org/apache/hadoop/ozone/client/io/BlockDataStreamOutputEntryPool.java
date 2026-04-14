@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Objects;
+import static org.apache.hadoop.ozone.client.io.BlockOutputStreamEntryPool.getStorageType;
+
 import org.apache.hadoop.hdds.client.ContainerBlockID;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.scm.OzoneClientConfig;
@@ -85,7 +87,8 @@ public class BlockDataStreamOutputEntryPool implements KeyMetadataAware {
         .setReplicationConfig(replicationConfig).setDataSize(info.getDataSize())
         .setIsMultipartKey(isMultipart).setMultipartUploadID(uploadID)
         .setMultipartUploadPartNumber(partNumber)
-        .setSortDatanodesInPipeline(true);
+        .setSortDatanodesInPipeline(true)
+        .setStoragePolicy(info.getStoragePolicy());
     this.openID = openID;
     this.excludeList = createExcludeList();
     this.bufferList = new ArrayList<>();
@@ -125,7 +128,8 @@ public class BlockDataStreamOutputEntryPool implements KeyMetadataAware {
             .setConfig(config)
             .setLength(subKeyInfo.getLength())
             .setToken(subKeyInfo.getToken())
-            .setBufferList(bufferList);
+            .setBufferList(bufferList)
+            .setStorageType(getStorageType(subKeyInfo));
     streamEntries.add(builder.build());
   }
 

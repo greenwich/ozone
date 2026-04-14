@@ -48,6 +48,8 @@ public final class ContainerReplica implements Comparable<ContainerReplica> {
   private final long bytesUsed;
   private final boolean isEmpty;
   private final StorageType storageType;
+  private final String containerPath;
+  private final StorageType volumeStorageType;
   private final ContainerChecksums checksums;
 
   private ContainerReplica(ContainerReplicaBuilder b) {
@@ -60,6 +62,8 @@ public final class ContainerReplica implements Comparable<ContainerReplica> {
     this.replicaIndex = b.replicaIndex;
     this.isEmpty = b.isEmpty;
     this.storageType = b.storageType;
+    this.containerPath = b.containerPath;
+    this.volumeStorageType = b.volumeStorageType;
     this.sequenceId = b.sequenceId;
     this.checksums = Objects.requireNonNull(b.checksums, "checksums == null");
   }
@@ -131,6 +135,16 @@ public final class ContainerReplica implements Comparable<ContainerReplica> {
     return storageType;
   }
 
+  @Nullable
+  public String getContainerPath() {
+    return containerPath;
+  }
+
+  @Nullable
+  public StorageType getVolumeStorageType() {
+    return volumeStorageType;
+  }
+
   public ContainerChecksums getChecksums() {
     return checksums;
   }
@@ -195,6 +209,8 @@ public final class ContainerReplica implements Comparable<ContainerReplica> {
         .setSequenceId(sequenceId)
         .setEmpty(isEmpty)
         .setStorageType(storageType)
+        .setContainerPath(containerPath)
+        .setVolumeStorageType(volumeStorageType)
         .setChecksums(checksums);
   }
 
@@ -210,6 +226,8 @@ public final class ContainerReplica implements Comparable<ContainerReplica> {
         + ", bytesUsed=" + bytesUsed
         + ", " + (isEmpty ? "empty" : "non-empty")
         + ", storageType=" + storageType
+        + ", containerPath=" + containerPath
+        + ", volumeStorageType=" + volumeStorageType
         + ", checksums=" + checksums
         + '}';
   }
@@ -229,6 +247,8 @@ public final class ContainerReplica implements Comparable<ContainerReplica> {
     private int replicaIndex;
     private boolean isEmpty;
     private StorageType storageType;
+    private String containerPath;
+    private StorageType volumeStorageType;
     private ContainerChecksums checksums;
 
     /**
@@ -306,6 +326,16 @@ public final class ContainerReplica implements Comparable<ContainerReplica> {
 
     public ContainerReplicaBuilder setStorageType(StorageType type) {
       this.storageType = type;
+      return this;
+    }
+
+    public ContainerReplicaBuilder setContainerPath(String path) {
+      this.containerPath = path;
+      return this;
+    }
+
+    public ContainerReplicaBuilder setVolumeStorageType(StorageType type) {
+      this.volumeStorageType = type;
       return this;
     }
 

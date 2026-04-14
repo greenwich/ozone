@@ -29,23 +29,33 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.collections4.iterators.LoopingIterator;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.HddsConfigKeys;
 import org.apache.hadoop.hdds.client.RatisReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.client.StandaloneReplicationConfig;
 import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
+import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
+import org.apache.hadoop.hdds.protocol.proto.HddsProtos.NodeOperationalState;
+import org.apache.hadoop.hdds.protocol.proto.HddsProtos.NodeState;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos.ReplicationFactor;
 import org.apache.hadoop.hdds.scm.ScmConfigKeys;
 import org.apache.hadoop.hdds.scm.ha.SCMContext;
 import org.apache.hadoop.hdds.scm.ha.SCMService;
+import org.apache.hadoop.hdds.scm.node.NodeManager;
+import org.apache.hadoop.hdds.scm.node.NodeUtils;
+import org.apache.hadoop.hdds.scm.server.OzoneStorageContainerManager;
 import org.apache.hadoop.ozone.OzoneConfigKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -213,8 +223,27 @@ public class BackgroundPipelineCreator implements SCMService {
         ScmConfigKeys.OZONE_SCM_PIPELINE_AUTO_CREATE_FACTOR_ONE,
         ScmConfigKeys.OZONE_SCM_PIPELINE_AUTO_CREATE_FACTOR_ONE_DEFAULT);
 
-    List<ReplicationConfig> list =
-        new ArrayList<>();
+    // Determine which StorageTypes are available in the cluster
+    OzoneStorageContainerManager scm = scmContext.getScm();
+    Set<StorageType> clusterStorageTypes = new HashSet<>();
+    if (scm != null) {
+      NodeManager nodeManager = scm.getScmNodeManager();
+      List<DatanodeDetails> datanodeDetails = nodeManager
+          .getNodes(NodeOperationalState.IN_SERVICE, NodeState.HEALTHY);
+      for (DatanodeDetails dn : datanodeDetails) {
+        clusterStorageTypes.addAll(NodeUtils.getDatanodesStorageTypes(dn, nodeManager));
+      }
+    } else {
+      // try all the available StorageTier if we cannot get OzoneStorageContainerManager
+      for (StorageTier storageTier : StorageTier.values()) {
+        if (storageTier.equals(StorageTier.EMPTY)) {
+          continue;
+        }
+        clusterStorageTypes.add(storageTier.getStorageTypes(1).get(0));
+      }
+    }
+
+    List<Pair<ReplicationConfig, StorageTier>> list = new ArrayList<>();
     for (HddsProtos.ReplicationFactor factor : HddsProtos.ReplicationFactor
         .values()) {
       if (factor == ReplicationFactor.ZERO) {
@@ -234,17 +263,29 @@ public class BackgroundPipelineCreator implements SCMService {
         // Skip this iteration for creating pipeline
         continue;
       }
-      list.add(replicationConfig);
+      for (StorageTier storageTier : StorageTier.values()) {
+        if (storageTier == StorageTier.EMPTY) {
+          continue;
+        }
+        StorageType firstStorageType = storageTier.getStorageTypes(1).get(0);
+        // A rough filter: if the cluster does not have the Volume of the StorageTier's primary
+        // storage type, then the current cluster must not support that StorageTier,
+        // so creation of that StorageTier Pipeline can be skipped.
+        if (!clusterStorageTypes.contains(firstStorageType)) {
+          continue;
+        }
+        list.add(Pair.of(replicationConfig, storageTier));
+      }
     }
 
     LoopingIterator it = new LoopingIterator(list);
     while (it.hasNext()) {
-      ReplicationConfig replicationConfig =
-          (ReplicationConfig) it.next();
+      @SuppressWarnings("unchecked")
+      Pair<ReplicationConfig, StorageTier> storageTierPair =
+          (Pair<ReplicationConfig, StorageTier>) it.next();
 
       try {
-        // Only create default StorageTier Pipeline
-        Pipeline pipeline = pipelineManager.createPipeline(replicationConfig, StorageTier.getDefaultTier());
+        Pipeline pipeline = pipelineManager.createPipeline(storageTierPair.getKey(), storageTierPair.getValue());
         LOG.info("Created new pipeline {}", pipeline);
       } catch (IOException ioe) {
         it.remove();

@@ -82,6 +82,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StoragePolicy;
+import org.apache.hadoop.ozone.s3.util.S3Utils;
 import org.apache.hadoop.ozone.OzoneConsts;
 import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.client.OzoneBucket;
@@ -106,6 +108,7 @@ import org.apache.hadoop.ozone.s3.util.RangeHeader;
 import org.apache.hadoop.ozone.s3.util.RangeHeaderParserUtil;
 import org.apache.hadoop.ozone.s3.util.S3Consts;
 import org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
+import org.apache.hadoop.ozone.s3.util.S3StorageClass;
 import org.apache.hadoop.ozone.s3.util.S3StorageType;
 import org.apache.hadoop.ozone.s3.util.S3Utils;
 import org.apache.hadoop.util.Time;
@@ -240,9 +243,12 @@ public class ObjectEndpoint extends ObjectOperationHandler {
             body, perf);
       }
 
+      String storageClass = getHeaders().getHeaderString(STORAGE_CLASS_HEADER);
       copyHeader = getHeaders().getHeaderString(COPY_SOURCE_HEADER);
 
       ReplicationConfig replicationConfig = getReplicationConfig(bucket);
+      StoragePolicy storagePolicy = S3Utils.getS3StoragePolicy(
+          storageClass, getOzoneConfiguration(), bucket);
 
       boolean enableEC = false;
       if ((replicationConfig != null &&
@@ -254,8 +260,10 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       if (copyHeader != null) {
         //Copy object, as copy source available.
         context.setAction(S3GAction.COPY_OBJECT);
+        boolean storageClassDefault = StringUtils.isEmpty(storageClass);
         CopyObjectResponse copyObjectResponse = copyObject(volume,
-            bucketName, keyPath, replicationConfig, perf);
+            bucketName, keyPath, replicationConfig, storageClassDefault,
+            perf, storagePolicy);
         return Response.status(Status.OK).entity(copyObjectResponse).header(
             "Connection", "close").build();
       }
@@ -310,7 +318,8 @@ public class ObjectEndpoint extends ObjectOperationHandler {
             validateSignatureHeader(getHeaders(), keyPath, signatureInfo.isSignPayload());
         try (OzoneOutputStream output = openKeyForPut(
             volume.getName(), bucketName, keyPath, length,
-            replicationConfig, customMetadata, tags, writeConditions)) {
+            replicationConfig, customMetadata, tags, writeConditions,
+            storagePolicy)) {
           long metadataLatencyNs =
               getMetrics().updatePutKeyMetadataStats(startNanos);
           perf.appendMetaLatencyNanos(metadataLatencyNs);
@@ -491,6 +500,7 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       }
 
       responseBuilder.header(ACCEPT_RANGE_HEADER, RANGE_HEADER_SUPPORTED_UNIT);
+      addStorageClassHeader(responseBuilder, keyDetails);
       addEntityTagHeader(responseBuilder, keyDetails);
 
       MultivaluedMap<String, String> queryParams =
@@ -519,6 +529,26 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       getMetrics().updateGetKeyFailureStats(startNanos);
       throw ex;
     }
+  }
+
+  /**
+   * Adds the x-amz-storage-class header to the response.
+   * If the key has a storagePolicy, maps it to S3StorageClass;
+   * otherwise falls back to S3StorageType based on replication config.
+   */
+  static void addStorageClassHeader(
+      ResponseBuilder responseBuilder, OzoneKey key) {
+    String storageClass;
+    if (key.getStoragePolicy() != null) {
+      storageClass = S3StorageClass.fromStoragePolicy(
+          key.getStoragePolicy()).getS3StorageClass();
+    } else {
+      S3StorageType s3StorageType = key.getReplicationConfig() == null
+          ? S3StorageType.STANDARD
+          : S3StorageType.fromReplicationConfig(key.getReplicationConfig());
+      storageClass = s3StorageType.toString();
+    }
+    responseBuilder.header(STORAGE_CLASS_HEADER, storageClass);
   }
 
   static void addLastModifiedDate(
@@ -605,14 +635,10 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       throw ex;
     }
 
-    S3StorageType s3StorageType = key.getReplicationConfig() == null ?
-        S3StorageType.STANDARD :
-        S3StorageType.fromReplicationConfig(key.getReplicationConfig());
-
     ResponseBuilder response = Response.ok().status(HttpStatus.SC_OK)
         .header(HttpHeaders.CONTENT_LENGTH, key.getDataSize())
-        .header(HttpHeaders.CONTENT_TYPE, "binary/octet-stream")
-        .header(STORAGE_CLASS_HEADER, s3StorageType.toString());
+        .header(HttpHeaders.CONTENT_TYPE, "binary/octet-stream");
+    addStorageClassHeader(response, key);
     addEntityTagHeader(response, key);
 
     addLastModifiedDate(response, key);
@@ -723,10 +749,14 @@ public class ObjectEndpoint extends ObjectOperationHandler {
 
       Map<String, String> tags = getTaggingFromHeaders(getHeaders());
 
+      String storageType = getHeaders().getHeaderString(STORAGE_CLASS_HEADER);
       ReplicationConfig replicationConfig = getReplicationConfig(ozoneBucket);
+      StoragePolicy mpuStoragePolicy = S3Utils.getS3StoragePolicy(
+          storageType, getOzoneConfiguration(), ozoneBucket);
 
       OmMultipartInfo multipartInfo =
-          ozoneBucket.initiateMultipartUpload(key, replicationConfig, customMetadata, tags);
+          ozoneBucket.initiateMultipartUpload(key, replicationConfig,
+              customMetadata, tags, mpuStoragePolicy);
 
       MultipartUploadInitiateResponse multipartUploadInitiateResponse = new
           MultipartUploadInitiateResponse();
@@ -1038,13 +1068,13 @@ public class ObjectEndpoint extends ObjectOperationHandler {
     perf.appendSizeBytes(copyLength);
   }
 
+  @SuppressWarnings("checkstyle:ParameterNumber")
   private CopyObjectResponse copyObject(OzoneVolume volume,
       String destBucket, String destkey, ReplicationConfig replicationConfig,
-      PerformanceStringBuilder perf)
+      boolean storageClassDefault, PerformanceStringBuilder perf,
+      StoragePolicy storagePolicy)
       throws OS3Exception, IOException {
     String copyHeader = getHeaders().getHeaderString(COPY_SOURCE_HEADER);
-    String storageType = getHeaders().getHeaderString(STORAGE_CLASS_HEADER);
-    boolean storageTypeDefault = StringUtils.isEmpty(storageType);
 
     long startNanos = Time.monotonicNowNanos();
     Pair<String, String> result = parseSourceHeader(copyHeader);
@@ -1066,9 +1096,9 @@ public class ObjectEndpoint extends ObjectOperationHandler {
           .equals(destkey)) {
         // When copying to same storage type when storage type is provided,
         // we should not throw exception, as aws cli checks if any of the
-        // options like storage type are provided or not when source and
+        // options like storage class are provided or not when source and
         // dest are given same
-        if (storageTypeDefault) {
+        if (storageClassDefault) {
           OS3Exception ex = newError(S3ErrorTable.INVALID_REQUEST, copyHeader);
           ex.setErrorMessage("This copy request is illegal because it is " +
               "trying to copy an object to it self itself without changing " +
@@ -1167,6 +1197,17 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       Map<String, String> tags,
       S3ConditionalRequest.WriteConditions writeConditions)
       throws IOException {
+    return openKeyForPut(volumeName, bucketName, keyPath, length,
+        replicationConfig, customMetadata, tags, writeConditions, null);
+  }
+
+  @SuppressWarnings("checkstyle:ParameterNumber")
+  private OzoneOutputStream openKeyForPut(String volumeName, String bucketName, String keyPath, long length,
+      ReplicationConfig replicationConfig, Map<String, String> customMetadata,
+      Map<String, String> tags,
+      S3ConditionalRequest.WriteConditions writeConditions,
+      StoragePolicy storagePolicy)
+      throws IOException {
     if (writeConditions.hasIfNoneMatch()) {
       return getClientProtocol().createKeyIfNotExists(
           volumeName, bucketName, keyPath, length, replicationConfig,
@@ -1179,7 +1220,7 @@ public class ObjectEndpoint extends ObjectOperationHandler {
     } else {
       return getClientProtocol().createKey(
           volumeName, bucketName, keyPath, length, replicationConfig,
-          customMetadata, tags);
+          customMetadata, tags, storagePolicy);
     }
   }
 

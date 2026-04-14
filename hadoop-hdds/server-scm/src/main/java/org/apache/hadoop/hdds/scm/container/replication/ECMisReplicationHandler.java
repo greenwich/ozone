@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
@@ -59,7 +60,8 @@ public class ECMisReplicationHandler extends MisReplicationHandler {
   protected int sendReplicateCommands(
       ContainerInfo containerInfo,
       Set<ContainerReplica> replicasToBeReplicated,
-      List<DatanodeDetails> sources, List<DatanodeDetails> targetDns)
+      List<DatanodeDetails> sources, List<DatanodeDetails> targetDns,
+      StorageType targetStorageType)
       throws CommandTargetOverloadedException, NotLeaderException {
     ReplicationManager replicationManager = getReplicationManager();
     int commandsSent = 0;
@@ -76,7 +78,7 @@ public class ECMisReplicationHandler extends MisReplicationHandler {
         if (replicationManager.getConfig().isPush()) {
           replicationManager.sendThrottledReplicationCommand(containerInfo,
               Collections.singletonList(source), target,
-              replica.getReplicaIndex());
+              replica.getReplicaIndex(), targetStorageType);
         } else {
           ReplicateContainerCommand cmd = ReplicateContainerCommand
               .fromSources(containerID, Collections.singletonList(source));

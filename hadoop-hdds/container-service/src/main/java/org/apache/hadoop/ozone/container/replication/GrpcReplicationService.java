@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdds.client.StorageTypeUtils;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.CopyContainerRequestProto;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.CopyContainerResponseProto;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.SendContainerRequest;
@@ -121,16 +123,20 @@ public class GrpcReplicationService extends
   public void download(CopyContainerRequestProto request,
       StreamObserver<CopyContainerResponseProto> responseObserver) {
     long containerID = request.getContainerID();
+    StorageType storageType = null;
+    if (request.hasStorageTypeID() && request.getStorageTypeID() > 0) {
+      storageType = StorageTypeUtils.getStorageTypeFromID(request.getStorageTypeID());
+    }
     CopyContainerCompression compression = fromProto(request.getCompression());
     LOG.info("Streaming container data ({}) to other datanode " +
-        "with compression {}", containerID, compression);
+        "with compression {} storageType {}", containerID, compression, storageType);
     OutputStream outputStream = null;
     try {
       outputStream = new CopyContainerResponseStream(
           // gRPC runtime always provides implementation of CallStreamObserver
           // that allows flow control.
           (CallStreamObserver<CopyContainerResponseProto>) responseObserver,
-          containerID, BUFFER_SIZE);
+          containerID, BUFFER_SIZE, storageType);
       source.copyData(containerID, outputStream, compression);
     } catch (IOException e) {
       LOG.warn("Error streaming container {}", containerID, e);

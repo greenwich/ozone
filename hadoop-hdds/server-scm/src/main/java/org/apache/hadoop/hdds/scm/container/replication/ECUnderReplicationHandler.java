@@ -33,7 +33,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.conf.StorageUnit;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
@@ -50,6 +52,7 @@ import org.apache.hadoop.hdds.scm.node.NodeStatus;
 import org.apache.hadoop.hdds.scm.node.states.NodeNotFoundException;
 import org.apache.hadoop.hdds.scm.pipeline.InsufficientDatanodesException;
 import org.apache.hadoop.ozone.protocol.commands.ReconstructECContainersCommand;
+import org.apache.hadoop.ozone.protocol.commands.ReconstructECContainersCommand.ECReconstructionTarget;
 import org.apache.hadoop.ozone.protocol.commands.ReplicateContainerCommand;
 import org.apache.ratis.protocol.exceptions.NotLeaderException;
 import org.slf4j.Logger;
@@ -365,7 +368,10 @@ public class ECUnderReplicationHandler implements UnhealthyReplicationHandler {
 
         final ReconstructECContainersCommand reconstructionCommand =
             new ReconstructECContainersCommand(container.getContainerID(),
-                sourceDatanodesWithIndex, selectedDatanodes,
+                sourceDatanodesWithIndex,
+                selectedDatanodes.stream()
+                    .map(dn -> new ECReconstructionTarget(dn, null))
+                    .collect(Collectors.toList()),
                 integers2ByteString(missingIndexes),
                 repConfig);
         // This can throw a CommandTargetOverloadedException, but there is no
@@ -416,6 +422,17 @@ public class ECUnderReplicationHandler implements UnhealthyReplicationHandler {
         currentContainerSize, container);
   }
 
+  private Pair<StorageType, List<DatanodeDetails>> getTargetDatanodesWithStorageTier(
+      ContainerInfo container, int requiredNodes,
+      List<DatanodeDetails> usedNodes,
+      List<DatanodeDetails> excludedNodes,
+      StorageTier storageTier) throws IOException {
+    return ReplicationManagerUtil.getTargetDatanodesWithFallback(
+        containerPlacement, requiredNodes,
+        usedNodes, excludedNodes,
+        currentContainerSize, container, storageTier);
+  }
+
   /**
    * Processes replicas that are in decommissioning nodes and should need
    * additional copies.
@@ -433,8 +450,10 @@ public class ECUnderReplicationHandler implements UnhealthyReplicationHandler {
     if (!decomIndexes.isEmpty()) {
       LOG.debug("Processing decommissioning indexes {} for container {}.",
           decomIndexes, container.containerID());
-      final List<DatanodeDetails> selectedDatanodes = getTargetDatanodes(
-          container, decomIndexes.size(), usedNodes, excludedNodes);
+      final Pair<StorageType, List<DatanodeDetails>> storageTypeWithDns = getTargetDatanodesWithStorageTier(
+          container, decomIndexes.size(), usedNodes, excludedNodes, container.getStorageTier());
+      StorageType finalStorageType = storageTypeWithDns.getKey();
+      final List<DatanodeDetails> selectedDatanodes = storageTypeWithDns.getValue();
 
       ContainerPlacementStatus placementStatusWithSelectedTargets =
           validatePlacement(container, availableSourceNodes, selectedDatanodes);
@@ -471,7 +490,7 @@ public class ECUnderReplicationHandler implements UnhealthyReplicationHandler {
         }
         try {
           createReplicateCommand(
-              container, iterator, sourceReplica, replicaCount);
+              container, iterator, sourceReplica, replicaCount, finalStorageType);
           commandsSent++;
         } catch (CommandTargetOverloadedException e) {
           LOG.debug("Unable to send Replicate command for container {}" +
@@ -530,9 +549,10 @@ public class ECUnderReplicationHandler implements UnhealthyReplicationHandler {
     LOG.debug("Number of maintenance replicas of container {} that need " +
             "additional copies: {}.", container.containerID(),
         additionalMaintenanceCopiesNeeded);
-    List<DatanodeDetails> targets = getTargetDatanodes(
-        container, maintIndexes.size(), usedNodes, excludedNodes
-    );
+    Pair<StorageType, List<DatanodeDetails>> storageTypeWithDns = getTargetDatanodesWithStorageTier(
+        container, maintIndexes.size(), usedNodes, excludedNodes, container.getStorageTier());
+    StorageType finalStorageType = storageTypeWithDns.getKey();
+    List<DatanodeDetails> targets = storageTypeWithDns.getValue();
     usedNodes.addAll(targets);
 
     Iterator<DatanodeDetails> iterator = targets.iterator();
@@ -563,7 +583,7 @@ public class ECUnderReplicationHandler implements UnhealthyReplicationHandler {
       }
       try {
         createReplicateCommand(
-            container, iterator, sourceReplica, replicaCount);
+            container, iterator, sourceReplica, replicaCount, finalStorageType);
         commandsSent++;
         additionalMaintenanceCopiesNeeded -= 1;
       } catch (CommandTargetOverloadedException e) {
@@ -593,7 +613,8 @@ public class ECUnderReplicationHandler implements UnhealthyReplicationHandler {
 
   private void createReplicateCommand(
       ContainerInfo container, Iterator<DatanodeDetails> iterator,
-      ContainerReplica replica, ECContainerReplicaCount replicaCount)
+      ContainerReplica replica, ECContainerReplicaCount replicaCount,
+      StorageType targetStorageType)
       throws CommandTargetOverloadedException, NotLeaderException {
     final boolean push = replicationManager.getConfig().isPush();
     DatanodeDetails source = replica.getDatanodeDetails();
@@ -603,11 +624,11 @@ public class ECUnderReplicationHandler implements UnhealthyReplicationHandler {
     if (push) {
       replicationManager.sendThrottledReplicationCommand(
           container, Collections.singletonList(source), target,
-          replica.getReplicaIndex());
+          replica.getReplicaIndex(), targetStorageType);
     } else {
       ReplicateContainerCommand replicateCommand =
           ReplicateContainerCommand.fromSources(containerID,
-          ImmutableList.of(source));
+          ImmutableList.of(source), targetStorageType);
       // For EC containers, we need to track the replica index which is
       // to be replicated, so add it to the command.
       replicateCommand.setReplicaIndex(replica.getReplicaIndex());

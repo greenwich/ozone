@@ -1426,6 +1426,14 @@ public class RpcClient implements ClientProtocol {
   public OzoneOutputStream rewriteKey(String volumeName, String bucketName, String keyName,
       long size, long existingKeyGeneration, ReplicationConfig replicationConfig,
       Map<String, String> metadata) throws IOException {
+    return rewriteKey(volumeName, bucketName, keyName, size, existingKeyGeneration,
+        replicationConfig, metadata, null);
+  }
+
+  @Override
+  public OzoneOutputStream rewriteKey(String volumeName, String bucketName, String keyName,
+      long size, long existingKeyGeneration, ReplicationConfig replicationConfig,
+      Map<String, String> metadata, StoragePolicy storagePolicy) throws IOException {
     if (omVersion.compareTo(OzoneManagerVersion.ATOMIC_REWRITE_KEY) < 0) {
       throw new IOException("OzoneManager does not support atomic key rewrite.");
     }
@@ -1435,7 +1443,8 @@ public class RpcClient implements ClientProtocol {
     OmKeyArgs.Builder builder = createWriteKeyArgsBuilder(volumeName,
         bucketName, keyName, size, replicationConfig, metadata,
         Collections.emptyMap());
-    builder.setExpectedDataGeneration(existingKeyGeneration);
+    builder.setExpectedDataGeneration(existingKeyGeneration)
+        .setStoragePolicy(storagePolicy);
     return openOutputStream(builder.build(), size);
   }
 
@@ -1546,6 +1555,21 @@ public class RpcClient implements ClientProtocol {
     OmKeyArgs.Builder builder = createStreamKeyArgsBuilder(
         volumeName, bucketName, keyName, size, replicationConfig, metadata,
         tags);
+    return openDataStreamOutput(builder.build());
+  }
+
+  @Override
+  public OzoneDataStreamOutput createStreamKey(
+      String volumeName, String bucketName, String keyName, long size,
+      ReplicationConfig replicationConfig,
+      Map<String, String> metadata, StoragePolicy storagePolicy)
+      throws IOException {
+    OmKeyArgs.Builder builder = createStreamKeyArgsBuilder(
+        volumeName, bucketName, keyName, size, replicationConfig, metadata,
+        Collections.emptyMap());
+    if (storagePolicy != null) {
+      builder.setStoragePolicy(storagePolicy);
+    }
     return openDataStreamOutput(builder.build());
   }
 
@@ -2215,7 +2239,8 @@ public class RpcClient implements ClientProtocol {
         new OzoneMultipartUploadPartListParts(
             omMultipartUploadListParts.getReplicationConfig(),
             omMultipartUploadListParts.getNextPartNumberMarker(),
-            omMultipartUploadListParts.isTruncated());
+            omMultipartUploadListParts.isTruncated(),
+            omMultipartUploadListParts.getStoragePolicy());
 
     for (OmPartInfo omPartInfo : omMultipartUploadListParts.getPartInfoList()) {
       ozoneMultipartUploadPartListParts.addPart(
@@ -2389,8 +2414,17 @@ public class RpcClient implements ClientProtocol {
       String bucketName, String keyName, long size,
       ReplicationConfig replicationConfig, boolean overWrite, boolean recursive)
       throws IOException {
+    return createStreamFile(volumeName, bucketName, keyName, size,
+        replicationConfig, overWrite, recursive, null);
+  }
+
+  @Override
+  public OzoneDataStreamOutput createStreamFile(String volumeName,
+      String bucketName, String keyName, long size,
+      ReplicationConfig replicationConfig, boolean overWrite, boolean recursive,
+      StoragePolicy storagePolicy) throws IOException {
     String ownerName = getRealUserInfo().getShortUserName();
-    OmKeyArgs keyArgs = new OmKeyArgs.Builder()
+    OmKeyArgs.Builder builder = new OmKeyArgs.Builder()
         .setVolumeName(volumeName)
         .setBucketName(bucketName)
         .setKeyName(keyName)
@@ -2398,10 +2432,12 @@ public class RpcClient implements ClientProtocol {
         .setReplicationConfig(replicationConfig)
         .setLatestVersionLocation(getLatestVersionLocation)
         .setSortDatanodesInPipeline(true)
-        .setOwnerName(ownerName)
-        .build();
+        .setOwnerName(ownerName);
+    if (storagePolicy != null) {
+      builder.setStoragePolicy(storagePolicy);
+    }
     OpenKeySession keySession =
-        ozoneManagerClient.createFile(keyArgs, overWrite, recursive);
+        ozoneManagerClient.createFile(builder.build(), overWrite, recursive);
     return createDataStreamOutput(keySession);
   }
 

@@ -30,7 +30,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.client.ContainerBlockID;
+import org.apache.hadoop.hdds.client.StorageTierUtil;
 import org.apache.hadoop.hdds.scm.ByteStringConversion;
 import org.apache.hadoop.hdds.scm.ContainerClientMetrics;
 import org.apache.hadoop.hdds.scm.OzoneClientConfig;
@@ -170,6 +172,25 @@ public class BlockOutputStreamEntryPool implements KeyMetadataAware {
             .setExecutorServiceSupplier(executorServiceSupplier)
             .setForRetry(forRetry)
             .build();
+  }
+
+  /**
+   * Extracts the StorageType from the key location info's storageTier.
+   * @param keyInfo the key location info
+   * @return the StorageType, or null if storageTier is not set
+   */
+  public static StorageType getStorageType(OmKeyLocationInfo keyInfo) {
+    StorageType storageType = null;
+    if (keyInfo.getStorageTier() != null) {
+      try {
+        storageType = StorageTierUtil.getStorageTypeForUniformStorageTier(
+            keyInfo.getStorageTier());
+      } catch (Exception e) {
+        LOG.warn("Failed to get storage type from storageTier: {}",
+            keyInfo.getStorageTier(), e);
+      }
+    }
+    return storageType;
   }
 
   private synchronized void addKeyLocationInfo(OmKeyLocationInfo subKeyInfo, boolean forRetry) {

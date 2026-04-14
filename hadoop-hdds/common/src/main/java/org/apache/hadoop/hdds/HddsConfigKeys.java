@@ -434,6 +434,10 @@ public final class HddsConfigKeys {
   public static final String HDDS_METRICS_PERCENTILES_INTERVALS_KEY =
       "hdds.metrics.percentiles.intervals";
 
+  public static final String HDDS_DATANODE_DEFAULT_STORAGE_TYPE =
+      "hdds.datanode.default.storagetype";
+  public static final String HDDS_DATANODE_DEFAULT_STORAGE_TYPE_DEFAULT = "DISK";
+
   /** Do not instantiate. */
   private HddsConfigKeys() {
   }

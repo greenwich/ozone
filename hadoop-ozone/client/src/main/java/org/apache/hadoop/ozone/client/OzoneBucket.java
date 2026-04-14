@@ -603,6 +603,25 @@ public class OzoneBucket extends WithMetadata {
   }
 
   /**
+   * Rewrite an existing key with a specific StoragePolicy.
+   *
+   * @param keyName Existing key to rewrite. This must exist in the bucket.
+   * @param size The size of the new key
+   * @param existingKeyGeneration The generation of the existing key
+   * @param replicationConfig The replication configuration for the key
+   * @param metadata custom key value metadata
+   * @param storagePolicy The storagePolicy of the Key
+   * @return OzoneOutputStream to which the data has to be written.
+   * @throws IOException
+   */
+  public OzoneOutputStream rewriteKey(String keyName, long size, long existingKeyGeneration,
+      ReplicationConfig replicationConfig, Map<String, String> metadata, StoragePolicy storagePolicy)
+      throws IOException {
+    return proxy.rewriteKey(volumeName, name, keyName, size, existingKeyGeneration,
+        replicationConfig, metadata, storagePolicy);
+  }
+
+  /**
    * Creates a key only if it does not exist (S3 If-None-Match: * semantics).
    *
    * @param keyName Name of the key
@@ -653,6 +672,42 @@ public class OzoneBucket extends WithMetadata {
       throws IOException {
     return createStreamKey(key, size, defaultReplication,
         Collections.emptyMap());
+  }
+
+  /**
+   * Creates a new key in the bucket using streaming write, with a StoragePolicy.
+   *
+   * @param key  Name of the key to be created.
+   * @param size Size of the data the key will point to.
+   * @param storagePolicy     StoragePolicy of the key.
+   * @return OzoneDataStreamOutput to which the data has to be written.
+   * @throws IOException
+   */
+  public OzoneDataStreamOutput createStreamKey(String key, long size,
+      StoragePolicy storagePolicy) throws IOException {
+    return createStreamKey(key, size, defaultReplication,
+        Collections.emptyMap(), storagePolicy);
+  }
+
+  /**
+   * Creates a new key in the bucket using streaming write, with a StoragePolicy.
+   *
+   * @param key               Name of the key to be created.
+   * @param size              Size of the data the key will point to.
+   * @param replicationConfig Replication configuration.
+   * @param keyMetadata       Custom key metadata.
+   * @param storagePolicy     StoragePolicy of the key.
+   * @return OzoneDataStreamOutput to which the data has to be written.
+   * @throws IOException
+   */
+  public OzoneDataStreamOutput createStreamKey(String key, long size,
+      ReplicationConfig replicationConfig, Map<String, String> keyMetadata,
+      StoragePolicy storagePolicy) throws IOException {
+    if (replicationConfig == null) {
+      replicationConfig = defaultReplication;
+    }
+    return proxy.createStreamKey(volumeName, name, key, size,
+        replicationConfig, keyMetadata, storagePolicy);
   }
 
   /**
@@ -1180,6 +1235,16 @@ public class OzoneBucket extends WithMetadata {
       boolean recursive) throws IOException {
     return proxy.createStreamFile(volumeName, name, keyName, size,
         replicationConfig, overWrite, recursive);
+  }
+
+  /**
+   * Creates a new file in the bucket using streaming write, with a StoragePolicy.
+   */
+  public OzoneDataStreamOutput createStreamFile(String keyName, long size,
+      ReplicationConfig replicationConfig, boolean overWrite,
+      boolean recursive, StoragePolicy storagePolicy) throws IOException {
+    return proxy.createStreamFile(volumeName, name, keyName, size,
+        replicationConfig, overWrite, recursive, storagePolicy);
   }
 
   /**
