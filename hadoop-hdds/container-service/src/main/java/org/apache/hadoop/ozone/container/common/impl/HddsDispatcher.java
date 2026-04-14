@@ -502,10 +502,10 @@ public class HddsDispatcher implements ContainerDispatcher, Auditor {
       ContainerProtos.DatanodeBlockID blockID =
           containerRequest.getWriteChunk().getBlockID();
       createRequest.setReplicaIndex(blockID.getReplicaIndex());
-      if (containerRequest.getWriteChunk().hasStorageTypeID()
-          && containerRequest.getWriteChunk().getStorageTypeID() > 0) {
+      if (blockID.hasStorageTypeID()
+          && blockID.getStorageTypeID() > 0) {
         createRequest.setStorageTypeID(
-            containerRequest.getWriteChunk().getStorageTypeID());
+            blockID.getStorageTypeID());
       }
     }
 
@@ -517,10 +517,12 @@ public class HddsDispatcher implements ContainerDispatcher, Auditor {
 
     if (containerRequest.hasPutSmallFile()) {
       // PutSmallFile does not support EC yet
-      if (containerRequest.getPutSmallFile().hasStorageTypeID()
-          && containerRequest.getPutSmallFile().getStorageTypeID() > 0) {
+      ContainerProtos.DatanodeBlockID blockID =
+          containerRequest.getPutSmallFile().getBlock().getBlockData().getBlockID();
+      if (blockID.hasStorageTypeID()
+          && blockID.getStorageTypeID() > 0) {
         createRequest.setStorageTypeID(
-            containerRequest.getPutSmallFile().getStorageTypeID());
+            blockID.getStorageTypeID());
       }
     }
 
