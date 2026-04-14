@@ -21,6 +21,7 @@ import com.google.common.base.Strings;
 import java.io.IOException;
 import org.apache.hadoop.hdds.client.DefaultReplicationConfig;
 import org.apache.hadoop.hdds.client.OzoneQuota;
+import org.apache.hadoop.hdds.client.OzoneStoragePolicy;
 import org.apache.hadoop.hdds.protocol.StorageType;
 import org.apache.hadoop.ozone.OzoneConsts;
 import org.apache.hadoop.ozone.client.BucketArgs;
@@ -68,6 +69,18 @@ public class CreateBucketHandler extends BucketHandler {
   @CommandLine.Mixin
   private SetSpaceQuotaOptions quotaOptions;
 
+  @Option(names = {"--storagepolicy", "-sp"},
+      description = "Allowed Bucket Storage Policy String values: HOT, WARM, COLD or null",
+      defaultValue = "WARM")
+  private String storagePolicyStr;
+
+  @CommandLine.Option(names = {"--allowFallBackStoragePolicy", "-asp"},
+      description = "If true, allows writing to the backing storage layer during creation",
+      defaultValue = "true")
+  private String allowFallBackStoragePolicyStr;
+
+  private static final String NULL_STORAGE_POLICY = "null";
+
   /**
    * Executes create bucket.
    */
@@ -79,8 +92,22 @@ public class CreateBucketHandler extends BucketHandler {
       ownerName = UserGroupInformation.getCurrentUser().getShortUserName();
     }
 
+    OzoneStoragePolicy storagePolicy = null;
+    Boolean allowFallBackStoragePolicy = Boolean.valueOf(allowFallBackStoragePolicyStr);
+    if (!Strings.isNullOrEmpty(storagePolicyStr) &&
+        !NULL_STORAGE_POLICY.equalsIgnoreCase(storagePolicyStr)) {
+      try {
+        storagePolicy = OzoneStoragePolicy.valueOf(storagePolicyStr.toUpperCase());
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException("Invalid storage policy: " + storagePolicyStr +
+            ". Allowed String values are: HOT, WARM, COLD, or null.");
+      }
+    }
+
     BucketArgs.Builder bb =
         new BucketArgs.Builder().setStorageType(StorageType.DEFAULT)
+            .setStoragePolicy(storagePolicy)
+            .setAllowFallbackStoragePolicy(allowFallBackStoragePolicy)
             .setVersioning(false).setOwner(ownerName);
     if (allowedBucketLayout != null) {
       bb.setBucketLayout(allowedBucketLayout);

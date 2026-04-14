@@ -58,6 +58,9 @@ import org.apache.hadoop.util.Time;
  */
 public class OMKeyCreateRequestWithFSO extends OMKeyCreateRequest {
 
+  private static final org.slf4j.Logger LOG =
+      org.slf4j.LoggerFactory.getLogger(OMKeyCreateRequestWithFSO.class);
+
   public OMKeyCreateRequestWithFSO(OMRequest omRequest,
       BucketLayout bucketLayout) {
     super(omRequest, bucketLayout);
@@ -147,6 +150,7 @@ public class OMKeyCreateRequestWithFSO extends OMKeyCreateRequest {
       // total number of keys created.
       numKeysCreated = missingParentInfos.size();
 
+      checkAndLogMissingStoragePolicy(keyArgs, LOG);
       final ReplicationConfig repConfig = OzoneConfigUtil
           .resolveReplicationConfigPreference(keyArgs.getType(),
               keyArgs.getFactor(), keyArgs.getEcReplicationConfig(),

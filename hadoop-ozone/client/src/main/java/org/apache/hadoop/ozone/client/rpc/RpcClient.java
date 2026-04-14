@@ -73,6 +73,8 @@ import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationConfigValidator;
 import org.apache.hadoop.hdds.client.ReplicationFactor;
 import org.apache.hadoop.hdds.client.ReplicationType;
+import org.apache.hadoop.hdds.client.OzoneStoragePolicy;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.conf.StorageUnit;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
@@ -637,12 +639,16 @@ public class RpcClient implements ClientProtocol {
     boolean isVersionEnabled = bucketArgs.getVersioning();
     StorageType storageType = bucketArgs.getStorageType() == null ?
         StorageType.DEFAULT : bucketArgs.getStorageType();
+    StoragePolicy storagePolicy = bucketArgs.getStoragePolicy() == null ?
+        OzoneStoragePolicy.getDefaultPolicy() : bucketArgs.getStoragePolicy();
     BucketLayout bucketLayout = bucketArgs.getBucketLayout();
     BucketEncryptionKeyInfo bek = null;
     if (bucketArgs.getEncryptionKey() != null) {
       bek = new BucketEncryptionKeyInfo.Builder()
           .setKeyName(bucketArgs.getEncryptionKey()).build();
     }
+    Boolean allowFallbackStoragePolicy = bucketArgs.getAllowFallbackStoragePolicy() == null ?
+        Boolean.TRUE : bucketArgs.getAllowFallbackStoragePolicy();
 
     OmBucketInfo.Builder builder = OmBucketInfo.newBuilder();
     builder.setVolumeName(volumeName)
@@ -650,12 +656,14 @@ public class RpcClient implements ClientProtocol {
         .setIsVersionEnabled(isVersionEnabled)
         .addAllMetadata(bucketArgs.getMetadata())
         .setStorageType(storageType)
+        .setStoragePolicy(storagePolicy)
         .setSourceVolume(bucketArgs.getSourceVolume())
         .setSourceBucket(bucketArgs.getSourceBucket())
         .setQuotaInBytes(bucketArgs.getQuotaInBytes())
         .setQuotaInNamespace(bucketArgs.getQuotaInNamespace())
         .setBucketLayout(bucketLayout)
-        .setOwner(owner);
+        .setOwner(owner)
+        .setAllowFallbackStoragePolicy(allowFallbackStoragePolicy);
 
     if (bucketArgs.getAcls() != null) {
       builder.acls().addAll(bucketArgs.getAcls());
@@ -685,12 +693,13 @@ public class RpcClient implements ClientProtocol {
         ? "with bucket layout " + bucketLayout
         : "with server-side default bucket layout";
     LOG.info("Creating Bucket: {}/{}, {}, {} as owner, Versioning {}, " +
-            "Storage Type set to {} and Encryption set to {}, " +
+            "Storage Policy set to {} and Encryption set to {}, " +
             "Replication Type set to {}, Namespace Quota set to {}, " +
-            "Space Quota set to {} ",
+            "Space Quota set to {}, allow fallBack StoragePolicy is {}",
         volumeName, bucketName, layoutMsg, owner, isVersionEnabled,
-        storageType, bek != null, replicationType,
-        bucketArgs.getQuotaInNamespace(), bucketArgs.getQuotaInBytes());
+        storagePolicy, bek != null, replicationType,
+        bucketArgs.getQuotaInNamespace(), bucketArgs.getQuotaInBytes(),
+        allowFallbackStoragePolicy);
 
     ozoneManagerClient.createBucket(builder.build());
   }
@@ -1199,6 +1208,28 @@ public class RpcClient implements ClientProtocol {
   }
 
   @Override
+  public void setBucketStoragePolicy(
+      String volumeName, String bucketName, StoragePolicy storagePolicy)
+      throws IOException {
+    verifyVolumeName(volumeName);
+    verifyBucketName(bucketName);
+    Objects.requireNonNull(storagePolicy, "storagePolicy == null");
+    OmBucketArgs.Builder builder = OmBucketArgs.newBuilder();
+    builder.setVolumeName(volumeName)
+        .setBucketName(bucketName)
+        .setStoragePolicy(storagePolicy);
+    ozoneManagerClient.setBucketProperty(builder.build());
+  }
+
+  @Override
+  public void setBucketStoragePolicyProperty(OmBucketArgs args)
+      throws IOException {
+    verifyVolumeName(args.getVolumeName());
+    verifyBucketName(args.getBucketName());
+    ozoneManagerClient.setBucketProperty(args);
+  }
+
+  @Override
   public void setBucketQuota(String volumeName, String bucketName,
       long quotaInNamespace, long quotaInBytes) throws IOException {
     verifyVolumeName(volumeName);
@@ -1289,6 +1320,7 @@ public class RpcClient implements ClientProtocol {
         .setVolumeName(bucketInfo.getVolumeName())
         .setName(bucketInfo.getBucketName())
         .setStorageType(bucketInfo.getStorageType())
+        .setStoragePolicy(bucketInfo.getStoragePolicy())
         .setVersioning(bucketInfo.getIsVersionEnabled())
         .setCreationTime(bucketInfo.getCreationTime())
         .setModificationTime(bucketInfo.getModificationTime())
@@ -1306,6 +1338,7 @@ public class RpcClient implements ClientProtocol {
         .setBucketLayout(bucketInfo.getBucketLayout())
         .setOwner(bucketInfo.getOwner())
         .setDefaultReplicationConfig(bucketInfo.getDefaultReplicationConfig())
+        .setAllowFallbackStoragePolicy(bucketInfo.getAllowFallbackStoragePolicy())
         .build();
   }
 
@@ -1322,6 +1355,7 @@ public class RpcClient implements ClientProtocol {
                 .setVolumeName(bucket.getVolumeName())
                 .setName(bucket.getBucketName())
                 .setStorageType(bucket.getStorageType())
+                .setStoragePolicy(bucket.getStoragePolicy())
                 .setVersioning(bucket.getIsVersionEnabled())
                 .setCreationTime(bucket.getCreationTime())
                 .setModificationTime(bucket.getModificationTime())
@@ -1340,6 +1374,7 @@ public class RpcClient implements ClientProtocol {
                 .setOwner(bucket.getOwner())
                 .setDefaultReplicationConfig(
                     bucket.getDefaultReplicationConfig())
+                .setAllowFallbackStoragePolicy(bucket.getAllowFallbackStoragePolicy())
                 .build())
         .collect(Collectors.toList());
   }
@@ -1369,10 +1404,21 @@ public class RpcClient implements ClientProtocol {
       String volumeName, String bucketName, String keyName, long size,
       ReplicationConfig replicationConfig,
       Map<String, String> metadata, Map<String, String> tags) throws IOException {
+    return createKey(volumeName, bucketName, keyName, size, replicationConfig,
+        metadata, tags, null);
+  }
+
+  @Override
+  public OzoneOutputStream createKey(
+      String volumeName, String bucketName, String keyName, long size,
+      ReplicationConfig replicationConfig,
+      Map<String, String> metadata, Map<String, String> tags,
+      StoragePolicy storagePolicy) throws IOException {
     String ownerName = getRealUserInfo().getShortUserName();
     OmKeyArgs.Builder builder = createWriteKeyArgsBuilder(volumeName,
         bucketName, keyName, size, replicationConfig, metadata, tags);
     builder.setOwnerName(ownerName);
+    builder.setStoragePolicy(storagePolicy);
     return openOutputStream(builder.build(), size);
   }
 
@@ -1780,7 +1826,8 @@ public class RpcClient implements ClientProtocol {
               key.getMetadata(),
               key.isFile(),
               key.getOwnerName(),
-              key.getTags()))
+              key.getTags(),
+              key.getStoragePolicy()))
           .collect(Collectors.toList());
     }
   }
@@ -1814,7 +1861,7 @@ public class RpcClient implements ClientProtocol {
         keyInfo.getFileEncryptionInfo(),
         () -> getInputStreamWithRetryFunction(keyInfo), keyInfo.isFile(),
         keyInfo.getOwnerName(), keyInfo.getTags(),
-        keyInfo.getGeneration()
+        keyInfo.getGeneration(), keyInfo.getStoragePolicy()
     );
   }
 
@@ -1973,6 +2020,18 @@ public class RpcClient implements ClientProtocol {
       Map<String, String> metadata,
       Map<String, String> tags)
       throws IOException {
+    return initiateMultipartUpload(volumeName, bucketName, keyName,
+        replicationConfig, metadata, tags, null);
+  }
+
+  @Override
+  public OmMultipartInfo initiateMultipartUpload(String volumeName,
+      String bucketName,
+      String keyName,
+      ReplicationConfig replicationConfig,
+      Map<String, String> metadata,
+      Map<String, String> tags, StoragePolicy storagePolicy)
+      throws IOException {
     verifyVolumeName(volumeName);
     verifyBucketName(bucketName);
     HddsClientUtils.checkNotNull(keyName);
@@ -2001,6 +2060,7 @@ public class RpcClient implements ClientProtocol {
         .addAllMetadataGdpr(metadata)
         .setOwnerName(ownerName)
         .addAllTags(tags)
+        .setStoragePolicy(storagePolicy)
         .build();
     OmMultipartInfo multipartInfo = ozoneManagerClient
         .initiateMultipartUpload(keyArgs);
@@ -2280,6 +2340,14 @@ public class RpcClient implements ClientProtocol {
   public OzoneOutputStream createFile(String volumeName, String bucketName,
       String keyName, long size, ReplicationConfig replicationConfig,
       boolean overWrite, boolean recursive) throws IOException {
+    return createFile(volumeName, bucketName, keyName, size, replicationConfig,
+        overWrite, recursive, null);
+  }
+
+  @Override
+  public OzoneOutputStream createFile(String volumeName, String bucketName,
+      String keyName, long size, ReplicationConfig replicationConfig,
+      boolean overWrite, boolean recursive, StoragePolicy storagePolicy) throws IOException {
     if (omVersion
         .compareTo(OzoneManagerVersion.ERASURE_CODED_STORAGE_SUPPORT) < 0) {
       if (replicationConfig.getReplicationType()
@@ -2298,6 +2366,7 @@ public class RpcClient implements ClientProtocol {
         .setReplicationConfig(replicationConfig)
         .setLatestVersionLocation(getLatestVersionLocation)
         .setOwnerName(ownerName)
+        .setStoragePolicy(storagePolicy)
         .build();
     OpenKeySession keySession =
         ozoneManagerClient.createFile(keyArgs, overWrite, recursive);

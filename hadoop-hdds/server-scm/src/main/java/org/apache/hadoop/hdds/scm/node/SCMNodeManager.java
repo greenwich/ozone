@@ -52,6 +52,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javax.management.ObjectName;
 import org.apache.hadoop.hdds.client.StorageTier;
+import org.apache.hadoop.hdds.client.StorageTypeUtils;
 import org.apache.hadoop.hdds.HddsConfigKeys;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
@@ -1123,6 +1124,7 @@ public class SCMNodeManager implements NodeManager {
       long freeSpaceToSpare = 0L;
       long reserved = 0L;
 
+      SCMNodeStat scmNodeStat = new SCMNodeStat();
       final DatanodeInfo datanodeInfo = nodeStateManager
           .getNode(datanodeDetails);
       final List<StorageReportProto> storageReportProtos = datanodeInfo
@@ -1134,9 +1136,16 @@ public class SCMNodeManager implements NodeManager {
         committed += reportProto.getCommitted();
         freeSpaceToSpare += reportProto.getFreeSpaceToSpare();
         reserved += reportProto.getReserved();
+        // Also track per-StorageType stats
+        scmNodeStat.add(reportProto.getCapacity(), reportProto.getScmUsed(),
+            reportProto.getRemaining(), reportProto.getCommitted(),
+            reportProto.getFreeSpaceToSpare(),
+            StorageTypeUtils.getFromProtobuf(reportProto.getStorageType()));
       }
-      return new SCMNodeStat(capacity, used, remaining, committed,
+      // Set the aggregate stats (including reserved which per-type doesn't track)
+      scmNodeStat.set(capacity, used, remaining, committed,
           freeSpaceToSpare, reserved);
+      return scmNodeStat;
     } catch (NodeNotFoundException e) {
       LOG.warn("Cannot generate NodeStat, datanode {} not found.", datanodeDetails);
       return null;

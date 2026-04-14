@@ -26,6 +26,7 @@ import org.apache.hadoop.crypto.key.KeyProvider;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationFactor;
 import org.apache.hadoop.hdds.client.ReplicationType;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.StorageType;
 import org.apache.hadoop.io.Text;
@@ -277,6 +278,29 @@ public interface ClientProtocol {
       throws IOException;
 
   /**
+   * Sets the Storage Policy of a Bucket.
+   * @param volumeName Name of the Volume
+   * @param bucketName Name of the Bucket
+   * @param storagePolicy StoragePolicy to be set
+   * @throws IOException
+   */
+  void setBucketStoragePolicy(String volumeName, String bucketName,
+                              StoragePolicy storagePolicy)
+      throws IOException;
+
+  /**
+   * Sets the Storage Policy property of a Bucket using OmBucketArgs.
+   * Supports setting/unsetting storage policy and allow-fallback in one call.
+   * @param args OmBucketArgs containing the storage policy properties
+   * @throws IOException
+   */
+  default void setBucketStoragePolicyProperty(
+      org.apache.hadoop.ozone.om.helpers.OmBucketArgs args) throws IOException {
+    throw new UnsupportedOperationException(
+        "setBucketStoragePolicyProperty not supported");
+  }
+
+  /**
    * Deletes a bucket if it is empty.
    * @param volumeName Name of the Volume
    * @param bucketName Name of the Bucket
@@ -432,6 +456,26 @@ public interface ClientProtocol {
       String keyName, long size, ReplicationConfig replicationConfig,
       Map<String, String> metadata, Map<String, String> tags)
       throws IOException;
+
+  /**
+   * Writes a key in an existing bucket with a specified StoragePolicy.
+   * @param volumeName Name of the Volume
+   * @param bucketName Name of the Bucket
+   * @param keyName Name of the Key
+   * @param size Size of the data
+   * @param replicationConfig Replication config of the key
+   * @param metadata Custom key metadata
+   * @param tags Custom key tags (used for S3 object tag)
+   * @param storagePolicy The StoragePolicy of the key.
+   * @return {@link OzoneOutputStream}
+   */
+  default OzoneOutputStream createKey(String volumeName, String bucketName,
+      String keyName, long size, ReplicationConfig replicationConfig,
+      Map<String, String> metadata, Map<String, String> tags,
+      StoragePolicy storagePolicy)
+      throws IOException {
+    return createKey(volumeName, bucketName, keyName, size, replicationConfig, metadata, tags);
+  }
 
   /**
    * Writes a key in an existing bucket.
@@ -676,6 +720,27 @@ public interface ClientProtocol {
       bucketName, String keyName, ReplicationConfig replicationConfig,
       Map<String, String> metadata, Map<String, String> tags)
       throws IOException;
+
+  /**
+   * Initiate Multipart upload with StoragePolicy.
+   * @param volumeName Name of the Volume
+   * @param bucketName Name of the Bucket
+   * @param keyName Name of the Key
+   * @param replicationConfig Replication config
+   * @param metadata Custom key value metadata
+   * @param tags Tags used for S3 object tags
+   * @param storagePolicy The StoragePolicy of the key
+   * @return {@link OmMultipartInfo}
+   * @throws IOException
+   */
+  default OmMultipartInfo initiateMultipartUpload(String volumeName, String
+      bucketName, String keyName, ReplicationConfig replicationConfig,
+      Map<String, String> metadata, Map<String, String> tags,
+      StoragePolicy storagePolicy)
+      throws IOException {
+    return initiateMultipartUpload(volumeName, bucketName, keyName,
+        replicationConfig, metadata, tags);
+  }
 
   /**
    * Create a part key for a multipart upload key.
@@ -1034,6 +1099,16 @@ public interface ClientProtocol {
   OzoneOutputStream createFile(String volumeName, String bucketName,
       String keyName, long size, ReplicationConfig replicationConfig,
       boolean overWrite, boolean recursive) throws IOException;
+
+  /**
+   * Creates an output stream for writing to a file with a StoragePolicy.
+   */
+  @SuppressWarnings("checkstyle:parameternumber")
+  default OzoneOutputStream createFile(String volumeName, String bucketName,
+      String keyName, long size, ReplicationConfig replicationConfig,
+      boolean overWrite, boolean recursive, StoragePolicy storagePolicy) throws IOException {
+    return createFile(volumeName, bucketName, keyName, size, replicationConfig, overWrite, recursive);
+  }
 
   @SuppressWarnings("checkstyle:parameternumber")
   OzoneDataStreamOutput createStreamFile(String volumeName, String bucketName,

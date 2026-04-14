@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationType;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
 
 /**
@@ -65,6 +66,8 @@ public class OzoneKey {
 
   private final Map<String, String> tags = new HashMap<>();
 
+  private final StoragePolicy storagePolicy;
+
   /**
    * Indicator if key is a file.
    */
@@ -75,6 +78,15 @@ public class OzoneKey {
       String keyName, long size, long creationTime,
       long modificationTime, ReplicationConfig replicationConfig,
       boolean isFile, String owner) {
+    this(volumeName, bucketName, keyName, size, creationTime,
+        modificationTime, replicationConfig, isFile, owner, null);
+  }
+
+  @SuppressWarnings("parameternumber")
+  public OzoneKey(String volumeName, String bucketName,
+      String keyName, long size, long creationTime,
+      long modificationTime, ReplicationConfig replicationConfig,
+      boolean isFile, String owner, StoragePolicy storagePolicy) {
     this.volumeName = volumeName;
     this.bucketName = bucketName;
     this.name = keyName;
@@ -84,6 +96,7 @@ public class OzoneKey {
     this.replicationConfig = replicationConfig;
     this.isFile = isFile;
     this.owner = owner;
+    this.storagePolicy = storagePolicy;
   }
 
   @SuppressWarnings("parameternumber")
@@ -93,7 +106,19 @@ public class OzoneKey {
                   Map<String, String> metadata, boolean isFile, String owner,
                   Map<String, String> tags) {
     this(volumeName, bucketName, keyName, size, creationTime,
-        modificationTime, replicationConfig, isFile, owner);
+        modificationTime, replicationConfig, isFile, owner, null);
+    this.metadata.putAll(metadata);
+    this.tags.putAll(tags);
+  }
+
+  @SuppressWarnings("parameternumber")
+  public OzoneKey(String volumeName, String bucketName,
+                  String keyName, long size, long creationTime,
+                  long modificationTime, ReplicationConfig replicationConfig,
+                  Map<String, String> metadata, boolean isFile, String owner,
+                  Map<String, String> tags, StoragePolicy storagePolicy) {
+    this(volumeName, bucketName, keyName, size, creationTime,
+        modificationTime, replicationConfig, isFile, owner, storagePolicy);
     this.metadata.putAll(metadata);
     this.tags.putAll(tags);
   }
@@ -213,6 +238,10 @@ public class OzoneKey {
     return isFile;
   }
 
+  public StoragePolicy getStoragePolicy() {
+    return storagePolicy;
+  }
+
   /**
    * Constructs OzoneKey from OmKeyInfo.
    *
@@ -222,7 +251,7 @@ public class OzoneKey {
         keyInfo.getKeyName(), keyInfo.getDataSize(), keyInfo.getCreationTime(),
         keyInfo.getModificationTime(), keyInfo.getReplicationConfig(),
         keyInfo.getMetadata(), keyInfo.isFile(), keyInfo.getOwnerName(),
-        keyInfo.getTags());
+        keyInfo.getTags(), keyInfo.getStoragePolicy());
   }
 
 }

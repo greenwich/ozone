@@ -27,7 +27,9 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
+import org.apache.hadoop.hdds.client.OzoneStoragePolicy;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.hdds.utils.db.Codec;
 import org.apache.hadoop.hdds.utils.db.CopyObject;
 import org.apache.hadoop.hdds.utils.db.DelegatedCodec;
@@ -88,6 +90,7 @@ public final class OmMultipartKeyInfo extends WithObjectID implements CopyObject
   // 0 - Legacy Schema -> Uses the same table to store the multipart part info
   // 1 - New Schema -> Uses a separate table to store the multipart part info
   private final byte schemaVersion;
+  private final StoragePolicy storagePolicy;
 
   public static Codec<OmMultipartKeyInfo> getCodec() {
     return CODEC;
@@ -191,6 +194,7 @@ public final class OmMultipartKeyInfo extends WithObjectID implements CopyObject
     this.partKeyInfoMap = new PartKeyInfoMap(b.partKeyInfoList);
     this.parentID = b.parentID;
     this.schemaVersion = b.schemaVersion;
+    this.storagePolicy = b.storagePolicy;
   }
 
   /** Copy constructor. */
@@ -210,6 +214,7 @@ public final class OmMultipartKeyInfo extends WithObjectID implements CopyObject
     this.partKeyInfoMap = b.partKeyInfoMap;
     this.parentID = b.parentID;
     this.schemaVersion = b.schemaVersion;
+    this.storagePolicy = b.storagePolicy;
   }
 
   /**
@@ -273,6 +278,10 @@ public final class OmMultipartKeyInfo extends WithObjectID implements CopyObject
     return replicationConfig;
   }
 
+  public StoragePolicy getStoragePolicy() {
+    return storagePolicy;
+  }
+
   public byte getSchemaVersion() {
     return schemaVersion;
   }
@@ -296,6 +305,7 @@ public final class OmMultipartKeyInfo extends WithObjectID implements CopyObject
     private final TreeMap<Integer, PartKeyInfo> partKeyInfoList;
     private long parentID;
     private byte schemaVersion;
+    private StoragePolicy storagePolicy;
 
     public Builder() {
       this.acls = AclListBuilder.empty();
@@ -322,6 +332,7 @@ public final class OmMultipartKeyInfo extends WithObjectID implements CopyObject
 
       this.parentID = multipartKeyInfo.parentID;
       this.schemaVersion = multipartKeyInfo.schemaVersion;
+      this.storagePolicy = multipartKeyInfo.storagePolicy;
     }
 
     public Builder setUploadID(String uploadId) {
@@ -356,6 +367,11 @@ public final class OmMultipartKeyInfo extends WithObjectID implements CopyObject
 
     public Builder setReplicationConfig(ReplicationConfig replConfig) {
       this.replicationConfig = replConfig;
+      return this;
+    }
+
+    public Builder setStoragePolicy(StoragePolicy storagePolicy) {
+      this.storagePolicy = storagePolicy;
       return this;
     }
 
@@ -455,7 +471,9 @@ public final class OmMultipartKeyInfo extends WithObjectID implements CopyObject
         .setObjectID(multipartKeyInfo.getObjectID())
         .setUpdateID(multipartKeyInfo.getUpdateID())
         .setParentID(multipartKeyInfo.getParentID())
-        .setSchemaVersion((byte) multipartKeyInfo.getSchemaVersion());
+        .setSchemaVersion((byte) multipartKeyInfo.getSchemaVersion())
+        .setStoragePolicy(multipartKeyInfo.hasStoragePolicy() ?
+            OzoneStoragePolicy.fromProto(multipartKeyInfo.getStoragePolicy()) : null);
   }
 
   /**
@@ -509,6 +527,9 @@ public final class OmMultipartKeyInfo extends WithObjectID implements CopyObject
     builder.addAllAcls(OzoneAclUtil.toProtobuf(acls));
     if (schemaVersion == 0) {
       builder.addAllPartKeyInfoList(partKeyInfoMap);
+    }
+    if (storagePolicy != null) {
+      builder.setStoragePolicy(OzoneStoragePolicy.toProto(storagePolicy));
     }
     return builder.build();
   }

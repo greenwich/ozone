@@ -42,6 +42,7 @@ import org.apache.hadoop.hdds.client.OzoneQuota;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationFactor;
 import org.apache.hadoop.hdds.client.ReplicationType;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.protocol.StorageType;
 import org.apache.hadoop.hdds.scm.client.HddsClientUtils;
@@ -52,6 +53,7 @@ import org.apache.hadoop.ozone.client.io.OzoneInputStream;
 import org.apache.hadoop.ozone.client.io.OzoneOutputStream;
 import org.apache.hadoop.ozone.client.protocol.ClientProtocol;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
+import org.apache.hadoop.ozone.om.helpers.OmBucketArgs;
 import org.apache.hadoop.ozone.om.helpers.BasicOmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.ErrorInfo;
@@ -93,6 +95,16 @@ public class OzoneBucket extends WithMetadata {
    * [RAM_DISK, SSD, DISK, ARCHIVE]
    */
   private StorageType storageType;
+
+  /**
+   * Storage policy to be used for this bucket.
+   */
+  private StoragePolicy storagePolicy;
+
+  /**
+   * Whether to allow fallback storage policy.
+   */
+  private Boolean allowFallbackStoragePolicy;
 
   /**
    * Bucket Version flag.
@@ -169,6 +181,8 @@ public class OzoneBucket extends WithMetadata {
     this.defaultReplication = builder.defaultReplicationConfig != null ?
         builder.defaultReplicationConfig.getReplicationConfig() : null;
     this.storageType = builder.storageType;
+    this.storagePolicy = builder.storagePolicy;
+    this.allowFallbackStoragePolicy = builder.allowFallbackStoragePolicy;
     this.versioning = builder.versioning;
     if (builder.conf != null) {
       this.listCacheSize = HddsClientUtils.getListCacheSize(builder.conf);
@@ -238,6 +252,24 @@ public class OzoneBucket extends WithMetadata {
    */
   public StorageType getStorageType() {
     return storageType;
+  }
+
+  /**
+   * Returns StoragePolicy of the Bucket.
+   *
+   * @return StoragePolicy
+   */
+  public StoragePolicy getStoragePolicy() {
+    return storagePolicy;
+  }
+
+  /**
+   * Returns whether the bucket allows fallback storage policy.
+   *
+   * @return allowFallbackStoragePolicy
+   */
+  public Boolean getAllowFallbackStoragePolicy() {
+    return allowFallbackStoragePolicy;
   }
 
   /**
@@ -356,6 +388,34 @@ public class OzoneBucket extends WithMetadata {
   public void setStorageType(StorageType newStorageType) throws IOException {
     proxy.setBucketStorageType(volumeName, name, newStorageType);
     storageType = newStorageType;
+  }
+
+  /**
+   * Sets/Changes the storage policy of the bucket.
+   * @param newStoragePolicy StoragePolicy to be set
+   * @throws IOException
+   */
+  public void setStoragePolicy(StoragePolicy newStoragePolicy) throws IOException {
+    proxy.setBucketStoragePolicy(volumeName, name, newStoragePolicy);
+    storagePolicy = newStoragePolicy;
+  }
+
+  /**
+   * Sets/Changes whether to allow the storage policy fallback.
+   * @param allowFallback whether to allow fallback
+   */
+  public void setAllowFallbackStoragePolicy(Boolean allowFallback) {
+    this.allowFallbackStoragePolicy = allowFallback;
+  }
+
+  /**
+   * Sets bucket StoragePolicy property.
+   * @param args - OmBucketArgs.
+   * @throws IOException
+   */
+  public void setStorageStoragePolicyProperty(OmBucketArgs args)
+      throws IOException {
+    proxy.setBucketStoragePolicyProperty(args);
   }
 
   /**
@@ -496,6 +556,28 @@ public class OzoneBucket extends WithMetadata {
       throws IOException {
     return proxy
         .createKey(volumeName, name, key, size, replicationConfig, keyMetadata, tags);
+  }
+
+  /**
+   * Creates a new key in the bucket with a specified StoragePolicy.
+   *
+   * @param key               Name of the key to be created.
+   * @param size              Size of the data the key will point to.
+   * @param replicationConfig Replication configuration.
+   * @param keyMetadata       Custom key metadata.
+   * @param tags              Tags used for S3 object tags
+   * @param storagePolicy     The StoragePolicy of the key.
+   * @return OzoneOutputStream to which the data has to be written.
+   * @throws IOException
+   */
+  public OzoneOutputStream createKey(String key, long size,
+      ReplicationConfig replicationConfig,
+      Map<String, String> keyMetadata,
+      Map<String, String> tags, StoragePolicy storagePolicy)
+      throws IOException {
+    return proxy
+        .createKey(volumeName, name, key, size, replicationConfig, keyMetadata, tags,
+            storagePolicy);
   }
 
   /**
@@ -892,6 +974,23 @@ public class OzoneBucket extends WithMetadata {
   }
 
   /**
+   * Initiate multipart upload for a specified key with StoragePolicy.
+   * @param keyName Name of the key to be created when the multipart upload is completed.
+   * @param config Replication config.
+   * @param metadata Custom key metadata.
+   * @param tags Tags used for S3 object tags.
+   * @param storagePolicy The StoragePolicy of the key
+   * @return OmMultipartInfo
+   * @throws IOException
+   */
+  public OmMultipartInfo initiateMultipartUpload(String keyName,
+      ReplicationConfig config, Map<String, String> metadata,
+      Map<String, String> tags, StoragePolicy storagePolicy)
+      throws IOException {
+    return proxy.initiateMultipartUpload(volumeName, name, keyName, config, metadata, tags, storagePolicy);
+  }
+
+  /**
    * Initiate multipart upload for a specified key, with default replication
    * type RATIS and with replication factor THREE.
    *
@@ -1065,6 +1164,17 @@ public class OzoneBucket extends WithMetadata {
             overWrite, recursive);
   }
 
+  /**
+   * OzoneFS api to creates an output stream for a file with StoragePolicy.
+   */
+  public OzoneOutputStream createFile(String keyName, long size,
+      ReplicationConfig replicationConfig, boolean overWrite,
+      boolean recursive, StoragePolicy storagePolicy) throws IOException {
+    return proxy
+        .createFile(volumeName, name, keyName, size, replicationConfig,
+            overWrite, recursive, storagePolicy);
+  }
+
   public OzoneDataStreamOutput createStreamFile(String keyName, long size,
       ReplicationConfig replicationConfig, boolean overWrite,
       boolean recursive) throws IOException {
@@ -1217,6 +1327,8 @@ public class OzoneBucket extends WithMetadata {
     private String name;
     private DefaultReplicationConfig defaultReplicationConfig;
     private StorageType storageType;
+    private StoragePolicy storagePolicy;
+    private Boolean allowFallbackStoragePolicy;
     private Boolean versioning;
     private long usedBytes;
     private long usedNamespace;
@@ -1264,6 +1376,16 @@ public class OzoneBucket extends WithMetadata {
 
     public Builder setStorageType(StorageType storageType) {
       this.storageType = storageType;
+      return this;
+    }
+
+    public Builder setStoragePolicy(StoragePolicy storagePolicy) {
+      this.storagePolicy = storagePolicy;
+      return this;
+    }
+
+    public Builder setAllowFallbackStoragePolicy(Boolean allowFallbackStoragePolicy) {
+      this.allowFallbackStoragePolicy = allowFallbackStoragePolicy;
       return this;
     }
 

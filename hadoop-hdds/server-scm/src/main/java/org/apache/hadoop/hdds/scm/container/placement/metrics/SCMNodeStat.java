@@ -19,6 +19,10 @@ package org.apache.hadoop.hdds.scm.container.placement.metrics;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import org.apache.hadoop.fs.StorageType;
+
+import java.util.EnumMap;
+import java.util.Map;
 
 /**
  * This class represents the SCM node stat.
@@ -31,6 +35,13 @@ public class SCMNodeStat implements NodeStat {
   private LongMetric freeSpaceToSpare;
   private LongMetric reserved;
 
+  // Per-StorageType capacity tracking
+  private Map<StorageType, LongMetric> capacityPerStorageType = new EnumMap<>(StorageType.class);
+  private Map<StorageType, LongMetric> usedPerStorageType = new EnumMap<>(StorageType.class);
+  private Map<StorageType, LongMetric> remainingPerStorageType = new EnumMap<>(StorageType.class);
+  private Map<StorageType, LongMetric> committedPerStorageType = new EnumMap<>(StorageType.class);
+  private Map<StorageType, LongMetric> freeSpaceToSparePerStorageType = new EnumMap<>(StorageType.class);
+
   public SCMNodeStat() {
     this(0L, 0L, 0L, 0L, 0L, 0L);
   }
@@ -38,6 +49,16 @@ public class SCMNodeStat implements NodeStat {
   public SCMNodeStat(SCMNodeStat other) {
     this(other.capacity.get(), other.scmUsed.get(), other.remaining.get(),
         other.committed.get(), other.freeSpaceToSpare.get(), other.reserved.get());
+    for (StorageType type : StorageType.values()) {
+      if (other.capacityPerStorageType.containsKey(type)) {
+        capacityPerStorageType.put(type, new LongMetric(other.capacityPerStorageType.get(type).get()));
+        usedPerStorageType.put(type, new LongMetric(other.usedPerStorageType.get(type).get()));
+        remainingPerStorageType.put(type, new LongMetric(other.remainingPerStorageType.get(type).get()));
+        committedPerStorageType.put(type, new LongMetric(other.committedPerStorageType.get(type).get()));
+        freeSpaceToSparePerStorageType.put(type,
+            new LongMetric(other.freeSpaceToSparePerStorageType.get(type).get()));
+      }
+    }
   }
 
   public SCMNodeStat(long capacity, long used, long remaining, long committed,
@@ -164,6 +185,88 @@ public class SCMNodeStat implements NodeStat {
     this.committed.set(this.getCommitted().get() - stat.getCommitted().get());
     this.freeSpaceToSpare.set(freeSpaceToSpare.get() - stat.getFreeSpaceToSpare().get());
     this.reserved.set(reserved.get() - stat.getReserved().get());
+    return this;
+  }
+
+  /**
+   * Get capacity for a specific StorageType. Returns overall capacity if storageType is null.
+   */
+  public LongMetric getCapacity(StorageType storageType) {
+    if (storageType == null) {
+      return getCapacity();
+    }
+    LongMetric m = capacityPerStorageType.get(storageType);
+    return m != null ? m : new LongMetric(0L);
+  }
+
+  /**
+   * Get used space for a specific StorageType. Returns overall used if storageType is null.
+   */
+  public LongMetric getScmUsed(StorageType storageType) {
+    if (storageType == null) {
+      return getScmUsed();
+    }
+    LongMetric m = usedPerStorageType.get(storageType);
+    return m != null ? m : new LongMetric(0L);
+  }
+
+  /**
+   * Get remaining space for a specific StorageType. Returns overall remaining if storageType is null.
+   */
+  public LongMetric getRemaining(StorageType storageType) {
+    if (storageType == null) {
+      return getRemaining();
+    }
+    LongMetric m = remainingPerStorageType.get(storageType);
+    return m != null ? m : new LongMetric(0L);
+  }
+
+  /**
+   * Get committed space for a specific StorageType.
+   */
+  public LongMetric getCommitted(StorageType storageType) {
+    if (storageType == null) {
+      return getCommitted();
+    }
+    LongMetric m = committedPerStorageType.get(storageType);
+    return m != null ? m : new LongMetric(0L);
+  }
+
+  /**
+   * Get free space to spare for a specific StorageType.
+   */
+  public LongMetric getFreeSpaceToSpare(StorageType storageType) {
+    if (storageType == null) {
+      return getFreeSpaceToSpare();
+    }
+    LongMetric m = freeSpaceToSparePerStorageType.get(storageType);
+    return m != null ? m : new LongMetric(0L);
+  }
+
+  /**
+   * Add specified capacity, used, and remaining values for a specific StorageType.
+   * Also adds to the aggregate totals.
+   *
+   * @param addCapacity   Capacity to add for the specified storage type.
+   * @param addUsed       Used space to add for the specified storage type.
+   * @param addRemaining  Remaining space to add for the specified storage type.
+   * @param addCommitted  Committed space to add for the specified storage type.
+   * @param addFreeSpaceToSpare  FreeSpaceToSpare space to add for the specified storage type.
+   * @param storageType The storage type for the specified values.
+   * @return Updated node stat.
+   */
+  public SCMNodeStat add(long addCapacity, long addUsed, long addRemaining,
+      long addCommitted, long addFreeSpaceToSpare, StorageType storageType) {
+    capacityPerStorageType.computeIfAbsent(storageType, k -> new LongMetric(0L)).add(addCapacity);
+    usedPerStorageType.computeIfAbsent(storageType, k -> new LongMetric(0L)).add(addUsed);
+    remainingPerStorageType.computeIfAbsent(storageType, k -> new LongMetric(0L)).add(addRemaining);
+    committedPerStorageType.computeIfAbsent(storageType, k -> new LongMetric(0L)).add(addCommitted);
+    freeSpaceToSparePerStorageType.computeIfAbsent(storageType, k -> new LongMetric(0L)).add(addFreeSpaceToSpare);
+    this.capacity.add(addCapacity);
+    this.scmUsed.add(addUsed);
+    this.remaining.add(addRemaining);
+    this.committed.add(addCommitted);
+    this.freeSpaceToSpare.add(addFreeSpaceToSpare);
     return this;
   }
 

@@ -55,6 +55,7 @@ import org.apache.hadoop.hdds.client.BlockID;
 import org.apache.hadoop.hdds.client.ContainerBlockID;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
 import org.apache.hadoop.hdds.client.OzoneStoragePolicy;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
 import org.apache.hadoop.hdds.scm.container.common.helpers.AllocatedBlock;
@@ -178,6 +179,34 @@ public abstract class OMKeyRequest extends OMClientRequest {
         resolvedArgs.getBucketName(), keyArgs.getKeyName(),
         aclType, clientId);
     return resolvedArgs;
+  }
+
+  /**
+   * Resolve the effective StoragePolicy for a key.
+   * Priority: keyArgs > bucket > system default.
+   */
+  protected StoragePolicy getStoragePolicy(OmBucketInfo bucketInfo,
+      KeyArgs keyArgs) {
+    if (keyArgs.hasStoragePolicy()) {
+      return OzoneStoragePolicy.fromProto(keyArgs.getStoragePolicy());
+    }
+    StoragePolicy bucketPolicy = bucketInfo.getStoragePolicy();
+    if (bucketPolicy != null) {
+      return bucketPolicy;
+    }
+    return OzoneStoragePolicy.getDefaultPolicy();
+  }
+
+  protected void checkAndLogMissingStoragePolicy(KeyArgs keyArgs, Logger logger) {
+    if (!keyArgs.getIsMultipartKey() && !keyArgs.hasStoragePolicy()) {
+      // This branch is only possible during the OM upgrade process when the new OM
+      // replays journals created by an old OM that did not set the StoragePolicy.
+      // This ensures compatibility and prevents issues during replay of old journals.
+      logger.warn("Key {} without a StoragePolicy. This should only occur during OM upgrade."
+              + " If this occurs outside of an upgrade, there may be an issue with the journal"
+              + " or the key creation process.",
+          keyArgs.getKeyName());
+    }
   }
 
   /**
@@ -965,7 +994,13 @@ public abstract class OMKeyRequest extends OMClientRequest {
           long transactionLogIndex, long objectID,
           ReplicationConfig replicationConfig,
           OmConfig config) throws IOException {
+    StoragePolicy storagePolicy = null;
+    if (keyArgs.hasStoragePolicy()) {
+      storagePolicy = OzoneStoragePolicy.fromProto(keyArgs.getStoragePolicy());
+    }
     if (keyArgs.getIsMultipartKey()) {
+      // The StoragePolicy of MPU will get from partKeyInfo which was created during
+      // S3InitiateMultipartUpload instead of keyArgs here
       return prepareMultipartFileInfo(omMetadataManager, keyArgs,
               size, locations, encInfo, prefixManager, omBucketInfo,
               omPathInfo, transactionLogIndex, objectID, config);
@@ -1001,6 +1036,9 @@ public abstract class OMKeyRequest extends OMClientRequest {
       if (keyArgs.hasExpectedETag()) {
         builder.setExpectedETag(keyArgs.getExpectedETag());
       }
+      if (keyArgs.hasStoragePolicy()) {
+        builder.setStoragePolicy(storagePolicy);
+      }
 
       return builder.build();
     }
@@ -1009,7 +1047,8 @@ public abstract class OMKeyRequest extends OMClientRequest {
     // Blocks will be appended as version 0.
     return createFileInfo(keyArgs, locations, replicationConfig,
             keyArgs.getDataSize(), encInfo, prefixManager,
-            omBucketInfo, omPathInfo, transactionLogIndex, objectID, config);
+            omBucketInfo, omPathInfo, transactionLogIndex, objectID,
+            config, storagePolicy);
   }
 
   /**
@@ -1028,6 +1067,24 @@ public abstract class OMKeyRequest extends OMClientRequest {
       OMFileRequest.OMPathInfo omPathInfo,
       long transactionLogIndex, long objectID,
       OmConfig config) throws OMException {
+    return createFileInfo(keyArgs, locations, replicationConfig, size,
+        encInfo, prefixManager, omBucketInfo, omPathInfo,
+        transactionLogIndex, objectID, config, null);
+  }
+
+  @SuppressWarnings("parameterNumber")
+  protected OmKeyInfo createFileInfo(
+      @Nonnull KeyArgs keyArgs,
+      @Nonnull List<OmKeyLocationInfo> locations,
+      @Nonnull ReplicationConfig replicationConfig,
+      long size,
+      @Nullable FileEncryptionInfo encInfo,
+      @Nonnull PrefixManager prefixManager,
+      @Nullable OmBucketInfo omBucketInfo,
+      OMFileRequest.OMPathInfo omPathInfo,
+      long transactionLogIndex, long objectID,
+      OmConfig config,
+      @Nullable StoragePolicy storagePolicy) throws OMException {
     OmKeyInfo.Builder builder = new OmKeyInfo.Builder();
     builder.setVolumeName(keyArgs.getVolumeName())
             .setBucketName(keyArgs.getBucketName())
@@ -1047,7 +1104,8 @@ public abstract class OMKeyRequest extends OMClientRequest {
                     keyArgs.getTagsList()))
             .setUpdateID(transactionLogIndex)
             .setOwnerName(keyArgs.getOwnerName())
-            .setFile(true);
+            .setFile(true)
+            .setStoragePolicy(storagePolicy);
     if (keyArgs.hasExpectedDataGeneration()) {
       builder.setExpectedDataGeneration(keyArgs.getExpectedDataGeneration());
     }
@@ -1115,7 +1173,8 @@ public abstract class OMKeyRequest extends OMClientRequest {
     // is not an actual key, it is a part of the key.
     return createFileInfo(args, locations, partKeyInfo.getReplicationConfig(),
             size, encInfo, prefixManager, omBucketInfo, omPathInfo,
-            transactionLogIndex, objectID, configuration);
+            transactionLogIndex, objectID, configuration,
+            partKeyInfo.getStoragePolicy());
   }
 
   /**

@@ -157,6 +157,7 @@ public class OMFileCreateRequestWithFSO extends OMFileCreateRequest {
       // total number of keys created.
       numKeysCreated = missingParentInfos.size();
 
+      checkAndLogMissingStoragePolicy(keyArgs, LOG);
       final ReplicationConfig repConfig = OzoneConfigUtil
           .resolveReplicationConfigPreference(keyArgs.getType(),
               keyArgs.getFactor(), keyArgs.getEcReplicationConfig(),

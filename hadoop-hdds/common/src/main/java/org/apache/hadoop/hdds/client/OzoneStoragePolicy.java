@@ -73,6 +73,23 @@ public enum OzoneStoragePolicy implements StoragePolicy {
   }
 
   /**
+   * Converts the provided StoragePolicy to its protobuf representation.
+   *
+   * @param storagePolicy the StoragePolicy to convert.
+   * @return the corresponding StoragePolicyProto.
+   */
+  public static StoragePolicyProto toProto(StoragePolicy storagePolicy) {
+    if (storagePolicy == null) {
+      throw new IllegalArgumentException("Error: StoragePolicy cannot be null.");
+    }
+    if (!(storagePolicy instanceof OzoneStoragePolicy)) {
+      throw new IllegalArgumentException(
+          "Error: Unsupported StoragePolicy type: " + storagePolicy.getName());
+    }
+    return ((OzoneStoragePolicy) storagePolicy).toProto();
+  }
+
+  /**
    * Converts a protobuf StoragePolicyProto to the corresponding StoragePolicyType.
    * @param proto the StoragePolicyProto to convert.
    * @return the corresponding StoragePolicyType.
@@ -98,6 +115,7 @@ public enum OzoneStoragePolicy implements StoragePolicy {
   }
 
   public static void setDefaultPolicy(OzoneStoragePolicy storagePolicy) {
+    com.google.common.base.Preconditions.checkNotNull(storagePolicy);
     defaultPolicy = storagePolicy;
   }
 

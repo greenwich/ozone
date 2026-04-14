@@ -108,4 +108,12 @@ public final class StorageTypeUtils {
       throws IllegalArgumentException {
     return proto.getNumber();
   }
+
+  /**
+   * Returns integer representation of FileSystem StorageType.
+   * @return storageType int ID value
+   */
+  public static int getID(StorageType storageType) throws IllegalArgumentException {
+    return getStorageTypeProto(storageType).getNumber();
+  }
 }

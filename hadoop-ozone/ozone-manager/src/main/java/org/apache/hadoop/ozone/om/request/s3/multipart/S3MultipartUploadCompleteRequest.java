@@ -489,6 +489,9 @@ public class S3MultipartUploadCompleteRequest extends OMKeyRequest {
           .addMetadata(OzoneConsts.ETAG,
               multipartUploadedKeyHash(partKeyInfoMap))
           .setOwnerName(keyArgs.getOwnerName());
+      if (dbOpenKeyInfo.getStoragePolicy() != null) {
+        builder.setStoragePolicy(dbOpenKeyInfo.getStoragePolicy());
+      }
     } else {
       OmKeyInfo dbOpenKeyInfo = getOmKeyInfoFromOpenKeyTable(multipartOpenKey,
           keyName, omMetadataManager);

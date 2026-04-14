@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Objects;
 import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension;
 import org.apache.hadoop.hdds.client.DefaultReplicationConfig;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.hdds.protocol.StorageType;
 import org.apache.hadoop.hdds.utils.db.cache.CacheKey;
 import org.apache.hadoop.hdds.utils.db.cache.CacheValue;
@@ -170,6 +171,30 @@ public class OMBucketSetPropertyRequest extends OMClientRequest {
         bucketInfoBuilder.setStorageType(storageType);
         LOG.debug("Updating bucket storage type for bucket: {} in volume: {}",
             bucketName, volumeName);
+      }
+
+      //Check StoragePolicy to update
+      StoragePolicy storagePolicy = omBucketArgs.getStoragePolicy();
+      Boolean unSetStoragePolicy = omBucketArgs.getUnSetStoragePolicy();
+      Boolean allowFallbackStoragePolicy = omBucketArgs.getAllowFallbackStoragePolicy();
+      if (storagePolicy != null && (unSetStoragePolicy != null && unSetStoragePolicy)) {
+        throw new OMException("Set storagePolicy and unset storagePolicy cannot be " +
+            "given at the same time", OMException.ResultCodes.NOT_SUPPORTED_OPERATION);
+      }
+      if (storagePolicy != null) {
+        bucketInfoBuilder.setStoragePolicy(storagePolicy);
+        LOG.debug("Setting bucket StoragePolicy to {} for bucket: {} " +
+            "in volume: {}", storagePolicy, bucketName, volumeName);
+      }
+      if (unSetStoragePolicy != null && unSetStoragePolicy) {
+        bucketInfoBuilder.setStoragePolicy(null);
+        LOG.debug("Setting bucket StoragePolicy to null for bucket: {} " +
+            "in volume: {}", bucketName, volumeName);
+      }
+      if (allowFallbackStoragePolicy != null) {
+        bucketInfoBuilder.setAllowFallbackStoragePolicy(allowFallbackStoragePolicy);
+        LOG.debug("Setting bucket allowFallbackStoragePolicy to {} for bucket: {} " +
+            "in volume: {}", allowFallbackStoragePolicy, bucketName, volumeName);
       }
 
       //Check Versioning to update

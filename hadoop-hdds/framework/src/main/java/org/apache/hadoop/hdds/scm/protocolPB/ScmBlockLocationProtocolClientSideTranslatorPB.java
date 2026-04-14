@@ -33,6 +33,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hdds.annotation.InterfaceAudience;
 import org.apache.hadoop.hdds.client.ContainerBlockID;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
+import org.apache.hadoop.hdds.client.OzoneStoragePolicy;
 import org.apache.hadoop.hdds.client.RatisReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.client.StandaloneReplicationConfig;
@@ -213,6 +214,8 @@ public final class ScmBlockLocationProtocolClientSideTranslatorPB
               .getReplicationType());
     }
 
+    requestBuilder.setStoragePolicy(OzoneStoragePolicy.toProto(storagePolicy));
+    requestBuilder.setAllowFallBack(allowFallbackStoragePolicy);
     AllocateScmBlockRequestProto request = requestBuilder.build();
 
     SCMBlockLocationRequest wrapper = createSCMBlockRequest(

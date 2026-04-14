@@ -28,7 +28,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.hadoop.hdds.client.OzoneStoragePolicy;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.ozone.OzoneConsts;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.OzoneConfigUtil;
@@ -52,12 +54,17 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.Multipa
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
 import org.apache.hadoop.ozone.protocolPB.OMPBHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Handles initiate multipart upload request.
  */
 public class S3InitiateMultipartUploadRequestWithFSO
         extends S3InitiateMultipartUploadRequest {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(S3InitiateMultipartUploadRequestWithFSO.class);
 
   public S3InitiateMultipartUploadRequestWithFSO(OMRequest omRequest,
       BucketLayout bucketLayout) {
@@ -161,6 +168,12 @@ public class S3InitiateMultipartUploadRequestWithFSO
                   bucketInfo.getDefaultReplicationConfig() :
                   null, ozoneManager);
 
+      checkAndLogMissingStoragePolicy(keyArgs, LOG);
+      StoragePolicy storagePolicy = null;
+      if (keyArgs.hasStoragePolicy()) {
+        storagePolicy = OzoneStoragePolicy.fromProto(keyArgs.getStoragePolicy());
+      }
+
       multipartKeyInfo = new OmMultipartKeyInfo.Builder()
           .setUploadID(keyArgs.getMultipartUploadID())
           .setCreationTime(keyArgs.getModificationTime())
@@ -168,6 +181,7 @@ public class S3InitiateMultipartUploadRequestWithFSO
           .setObjectID(pathInfoFSO.getLeafNodeObjectId())
           .setUpdateID(transactionLogIndex)
           .setParentID(pathInfoFSO.getLastKnownParentId())
+          .setStoragePolicy(storagePolicy)
           .build();
 
       omKeyInfo = new OmKeyInfo.Builder()
@@ -189,6 +203,7 @@ public class S3InitiateMultipartUploadRequestWithFSO
           .setParentObjectID(pathInfoFSO.getLastKnownParentId())
           .addAllMetadata(KeyValueUtil.getFromProtobuf(keyArgs.getMetadataList()))
           .addAllTags(KeyValueUtil.getFromProtobuf(keyArgs.getTagsList()))
+          .setStoragePolicy(storagePolicy)
           .build();
       
       // validate and update namespace for missing parent directory
