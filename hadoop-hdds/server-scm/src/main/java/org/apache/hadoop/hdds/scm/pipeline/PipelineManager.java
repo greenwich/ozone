@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.NavigableSet;
 import java.util.Set;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.scm.container.ContainerID;
 import org.apache.hadoop.hdds.scm.container.ContainerReplica;
@@ -39,9 +40,18 @@ public interface PipelineManager extends Closeable, PipelineManagerMXBean {
   Pipeline createPipeline(ReplicationConfig replicationConfig)
       throws IOException;
 
+  Pipeline createPipeline(ReplicationConfig replicationConfig, StorageTier storageTier)
+      throws IOException;
+
   Pipeline createPipeline(ReplicationConfig replicationConfig,
                           List<DatanodeDetails> excludedNodes,
                           List<DatanodeDetails> favoredNodes)
+      throws IOException;
+
+  Pipeline createPipeline(ReplicationConfig replicationConfig,
+                          List<DatanodeDetails> excludedNodes,
+                          List<DatanodeDetails> favoredNodes,
+                          StorageTier storageTier)
       throws IOException;
 
   Pipeline buildECPipeline(ReplicationConfig replicationConfig,
@@ -74,10 +84,23 @@ public interface PipelineManager extends Closeable, PipelineManagerMXBean {
   );
 
   List<Pipeline> getPipelines(
+      ReplicationConfig replicationConfig, Pipeline.PipelineState state,
+      StorageTier storageTier
+  );
+
+  List<Pipeline> getPipelines(
       ReplicationConfig replicationConfig,
       Pipeline.PipelineState state,
       Collection<DatanodeDetails> excludeDns,
       Collection<PipelineID> excludePipelines
+  );
+
+  List<Pipeline> getPipelines(
+      ReplicationConfig replicationConfig,
+      Pipeline.PipelineState state,
+      Collection<DatanodeDetails> excludeDns,
+      Collection<PipelineID> excludePipelines,
+      StorageTier storageTier
   );
 
   /**

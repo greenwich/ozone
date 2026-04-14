@@ -21,7 +21,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import jakarta.annotation.Nonnull;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos.ReplicationFactor;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos.ReplicationType;
@@ -52,42 +54,25 @@ public interface ScmBlockLocationProtocol extends Closeable {
   /**
    * Asks SCM where a block should be allocated. SCM responds with the
    * set of datanodes that should be used creating this block.
-   * @param size - size of the block.
-   * @param numBlocks - number of blocks.
-   * @param type - replication type of the blocks.
-   * @param factor - replication factor of the blocks.
-   * @param excludeList List of datanodes/containers to exclude during block
-   *                    allocation.
-   * @return allocated block accessing info (key, pipeline).
-   * @throws IOException
-   */
-  @Deprecated
-  default List<AllocatedBlock> allocateBlock(long size, int numBlocks,
-      ReplicationType type, ReplicationFactor factor, String owner,
-      ExcludeList excludeList) throws IOException, TimeoutException {
-    return allocateBlock(size, numBlocks, ReplicationConfig
-        .fromProtoTypeAndFactor(type, factor), owner, excludeList);
-  }
-
-  /**
-   * Asks SCM where a block should be allocated. SCM responds with the
-   * set of datanodes that should be used creating this block.
    *
    * @param size              - size of the block.
    * @param numBlocks         - number of blocks.
    * @param replicationConfig - replicationConfiguration
    * @param owner             - service owner of the new block
    * @param excludeList       List of datanodes/containers to exclude during
-   *                          block
-   *                          allocation.
+   *                          block allocation.
+   * @param storagePolicy              - The storage policy to be used for block allocation.
+   * @param allowFallbackStoragePolicy - If true, allows fallback to a default storage policy.
    * @return allocated block accessing info (key, pipeline).
    * @throws IOException
    */
   default List<AllocatedBlock> allocateBlock(long size, int numBlocks,
        ReplicationConfig replicationConfig, String owner,
-       ExcludeList excludeList) throws IOException {
+       ExcludeList excludeList,
+       @Nonnull StoragePolicy storagePolicy,
+       boolean allowFallbackStoragePolicy) throws IOException {
     return allocateBlock(size, numBlocks, replicationConfig, owner,
-        excludeList, null);
+        excludeList, null, storagePolicy, allowFallbackStoragePolicy);
   }
 
   /**
@@ -100,16 +85,19 @@ public interface ScmBlockLocationProtocol extends Closeable {
    * @param replicationConfig - replicationConfiguration
    * @param owner             - service owner of the new block
    * @param excludeList       List of datanodes/containers to exclude during
-   *                          block
-   *                          allocation.
+   *                          block allocation.
    * @param clientMachine client address, depends, can be hostname or
    *                      ipaddress.
+   * @param storagePolicy              - The storage policy to be used for block allocation.
+   * @param allowFallbackStoragePolicy - If true, allows fallback to a default storage policy.
    * @return allocated block accessing info (key, pipeline).
    * @throws IOException
    */
   List<AllocatedBlock> allocateBlock(long size, int numBlocks,
       ReplicationConfig replicationConfig, String owner,
-      ExcludeList excludeList, String clientMachine) throws IOException;
+      ExcludeList excludeList, String clientMachine,
+      @Nonnull StoragePolicy storagePolicy,
+      boolean allowFallbackStoragePolicy) throws IOException;
 
   /**
    * Delete blocks for a set of object keys.

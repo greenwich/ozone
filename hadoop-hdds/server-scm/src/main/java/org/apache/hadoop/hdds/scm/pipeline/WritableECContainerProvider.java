@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NavigableSet;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.conf.Config;
 import org.apache.hadoop.hdds.conf.ConfigGroup;
@@ -182,6 +183,14 @@ public class WritableECContainerProvider
     }
   }
 
+  @Override
+  public ContainerInfo getContainer(final long size,
+      ECReplicationConfig repConfig, String owner, ExcludeList excludeList,
+      StorageTier storageTier) throws IOException {
+    // TODO StoragePolicy Support EC - for now delegate to default behavior
+    return getContainer(size, repConfig, owner, excludeList);
+  }
+
   private int getMaximumPipelines(ECReplicationConfig repConfig) {
     final double factor = providerConfig.getPipelinePerVolumeFactor();
     int volumeBasedCount = 0;
@@ -206,7 +215,8 @@ public class WritableECContainerProvider
     // the returned ContainerInfo should not be null (due to not enough space in the Datanodes specifically) because
     // this is a new pipeline and pipeline creation checks for sufficient space in the Datanodes
     ContainerInfo container =
-        containerManager.getMatchingContainer(size, owner, newPipeline);
+        containerManager.getMatchingContainer(size, owner, newPipeline,
+            Collections.emptySet(), StorageTier.getDefaultTier());
     if (container == null) {
       // defensive null handling
       throw new IOException("Could not allocate a new container");

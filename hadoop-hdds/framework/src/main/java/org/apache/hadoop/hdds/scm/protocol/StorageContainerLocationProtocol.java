@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos.DeletedBlocksTransactionInfo;
@@ -86,9 +87,18 @@ public interface StorageContainerLocationProtocol extends Closeable {
    * set of datanodes that should be used creating this container.
    *
    */
-  ContainerWithPipeline allocateContainer(
+  default ContainerWithPipeline allocateContainer(
       HddsProtos.ReplicationType replicationType,
       HddsProtos.ReplicationFactor factor, String owner)
+      throws IOException {
+    return allocateContainer(replicationType, factor, owner,
+        StorageTier.getDefaultTier().toProto());
+  }
+
+  ContainerWithPipeline allocateContainer(
+      HddsProtos.ReplicationType replicationType,
+      HddsProtos.ReplicationFactor factor, String owner,
+      HddsProtos.StorageTierProto storageTier)
       throws IOException;
 
   ContainerWithPipeline allocateContainer(ReplicationConfig replicationConfig, String owner) throws IOException;

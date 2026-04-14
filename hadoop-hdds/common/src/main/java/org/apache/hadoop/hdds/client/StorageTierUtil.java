@@ -39,16 +39,38 @@ public final class StorageTierUtil {
     }
   }
 
-  public static StorageType getStorageTypeForUniformStorageTier(StorageTier storageTier, ReplicationConfig config)
+  public static StorageType getStorageTypeForUniformStorageTier(StorageTier storageTier)
       throws SCMException {
     validateNotEmpty(storageTier);
-    List<StorageType> storageTypes = storageTier.getStorageTypes(config);
+    List<StorageType> storageTypes = storageTier.getStorageTypes(1);
     if (storageTier.isUniformStorageType()) {
       return storageTypes.get(0);
     } else {
       throw new SCMException("Unsupported non-uniform storage tier " + storageTier,
           SCMException.ResultCodes.UNSUPPORTED_NON_UNIFORM_STORAGE_TIER);
     }
+  }
+
+  /**
+   * Finds the supported StorageTiers given the storage types available
+   * on each datanode.
+   *
+   * @param dnStorageTypes a list where each element is the set of StorageTypes
+   *                       available on a datanode
+   * @return list of StorageTiers supported by this combination of datanodes
+   */
+  public static List<StorageTier> findSupportedStorageTiers(
+      List<Set<StorageType>> dnStorageTypes) {
+    List<StorageTier> supportedStorageTiers = new ArrayList<>();
+    Set<List<StorageType>> combinations = Sets.cartesianProduct(dnStorageTypes);
+    for (List<StorageType> combination : combinations) {
+      long id = StorageTier.computeId(combination);
+      StorageTier tier = StorageTier.fromID(dnStorageTypes.size(), id);
+      if (tier != null && tier != StorageTier.EMPTY) {
+        supportedStorageTiers.add(tier);
+      }
+    }
+    return supportedStorageTiers;
   }
 
   /**
@@ -73,10 +95,10 @@ public final class StorageTierUtil {
     }
   }
 
-  public static List<StorageTypeInfo> getStorageTypeInfoList(StorageTier storageTier, ReplicationConfig config)
+  public static List<StorageTypeInfo> getStorageTypeInfoList(StorageTier storageTier, int nodeCount)
       throws SCMException {
     validateNotEmpty(storageTier);
-    List<StorageType> storageTypes = storageTier.getStorageTypes(config);
+    List<StorageType> storageTypes = storageTier.getStorageTypes(nodeCount);
     List<StorageTypeInfo> storageTypeInfoList = new ArrayList<>();
     Set<StorageType> seen = Sets.newHashSet();
     for (StorageType type : storageTypes) {

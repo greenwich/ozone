@@ -24,6 +24,7 @@ import com.google.protobuf.RpcController;
 import com.google.protobuf.ServiceException;
 import java.io.Closeable;
 import java.io.IOException;
+import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,8 @@ import org.apache.hadoop.hdds.client.ECReplicationConfig;
 import org.apache.hadoop.hdds.client.RatisReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.client.StandaloneReplicationConfig;
+import org.apache.hadoop.hdds.client.StoragePolicy;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.hdds.conf.StorageUnit;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
@@ -173,8 +176,9 @@ public final class ScmBlockLocationProtocolClientSideTranslatorPB
       long size, int num,
       ReplicationConfig replicationConfig,
       String owner, ExcludeList excludeList,
-      String clientMachine
-  ) throws IOException {
+      String clientMachine,
+      @Nonnull StoragePolicy storagePolicy,
+      boolean allowFallbackStoragePolicy) throws IOException {
     Preconditions.checkArgument(size > 0, "block size must be greater than 0");
 
     final AllocateScmBlockRequestProto.Builder requestBuilder =
@@ -200,9 +204,6 @@ public final class ScmBlockLocationProtocolClientSideTranslatorPB
           ((RatisReplicationConfig) replicationConfig).getReplicationFactor());
       break;
     case EC:
-      // We do not check for server support here, as this call is used only
-      // from OM which has the same software version as SCM.
-      // TODO: Rolling upgrade support needs to change this.
       requestBuilder.setEcReplicationConfig(
           ((ECReplicationConfig)replicationConfig).toProto());
       break;
@@ -229,7 +230,10 @@ public final class ScmBlockLocationProtocolClientSideTranslatorPB
       AllocatedBlock.Builder builder = new AllocatedBlock.Builder()
           .setContainerBlockID(
               ContainerBlockID.getFromProtobuf(resp.getContainerBlockID()))
-          .setPipeline(Pipeline.getFromProtobuf(resp.getPipeline()));
+          .setPipeline(Pipeline.getFromProtobuf(resp.getPipeline()))
+          .setIsFallBack(resp.getIsFallBack())
+          .setStorageTier(resp.hasStorageTier()
+              ? StorageTier.fromProto(resp.getStorageTier()) : null);
       blocks.add(builder.build());
     }
 

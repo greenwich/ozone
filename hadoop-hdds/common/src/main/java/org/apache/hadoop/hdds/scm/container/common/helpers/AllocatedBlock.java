@@ -18,6 +18,7 @@
 package org.apache.hadoop.hdds.scm.container.common.helpers;
 
 import org.apache.hadoop.hdds.client.ContainerBlockID;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.scm.pipeline.Pipeline;
 
 /**
@@ -27,6 +28,8 @@ import org.apache.hadoop.hdds.scm.pipeline.Pipeline;
 public final class AllocatedBlock {
   private final Pipeline pipeline;
   private final ContainerBlockID containerBlockID;
+  private final StorageTier storageTier;
+  private final boolean isFallBack;
 
   /**
    * Builder for AllocatedBlock.
@@ -34,6 +37,8 @@ public final class AllocatedBlock {
   public static class Builder {
     private Pipeline pipeline;
     private ContainerBlockID containerBlockID;
+    private StorageTier storageTier;
+    private boolean isFallBack;
 
     public Builder setPipeline(Pipeline p) {
       this.pipeline = p;
@@ -45,14 +50,28 @@ public final class AllocatedBlock {
       return this;
     }
 
+    public Builder setStorageTier(StorageTier storageTier) {
+      this.storageTier = storageTier;
+      return this;
+    }
+
+    public Builder setIsFallBack(boolean fallBack) {
+      isFallBack = fallBack;
+      return this;
+    }
+
     public AllocatedBlock build() {
-      return new AllocatedBlock(pipeline, containerBlockID);
+      return new AllocatedBlock(pipeline, containerBlockID, storageTier,
+          isFallBack);
     }
   }
 
-  private AllocatedBlock(Pipeline pipeline, ContainerBlockID containerBlockID) {
+  private AllocatedBlock(Pipeline pipeline, ContainerBlockID containerBlockID,
+      StorageTier storageTier, boolean isFallBack) {
     this.pipeline = pipeline;
     this.containerBlockID = containerBlockID;
+    this.storageTier = storageTier;
+    this.isFallBack = isFallBack;
   }
 
   public Pipeline getPipeline() {
@@ -63,6 +82,14 @@ public final class AllocatedBlock {
     return containerBlockID;
   }
 
+  public StorageTier getStorageTier() {
+    return storageTier;
+  }
+
+  public boolean isFallBack() {
+    return isFallBack;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -70,6 +97,8 @@ public final class AllocatedBlock {
   public Builder toBuilder() {
     return new Builder()
         .setContainerBlockID(containerBlockID)
-        .setPipeline(pipeline);
+        .setPipeline(pipeline)
+        .setStorageTier(storageTier)
+        .setIsFallBack(isFallBack);
   }
 }

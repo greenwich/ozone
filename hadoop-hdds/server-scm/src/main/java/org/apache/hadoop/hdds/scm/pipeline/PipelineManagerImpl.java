@@ -39,6 +39,7 @@ import org.apache.hadoop.hdds.HddsConfigKeys;
 import org.apache.hadoop.hdds.client.RatisReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.client.StandaloneReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
@@ -215,9 +216,10 @@ public class PipelineManagerImpl implements PipelineManager {
     if (replicationConfig.getReplicationType() != ReplicationType.EC) {
       throw new IllegalArgumentException("Replication type must be EC");
     }
+    // TODO StoragePolicy Support EC
     checkIfPipelineCreationIsAllowed(replicationConfig);
     return pipelineFactory.create(replicationConfig, excludedNodes,
-        favoredNodes);
+        favoredNodes, StorageTier.getDefaultTier());
   }
 
   /**
@@ -247,6 +249,14 @@ public class PipelineManagerImpl implements PipelineManager {
 
   @Override
   public Pipeline createPipeline(ReplicationConfig replicationConfig,
+      StorageTier storageTier)
+      throws IOException {
+    return createPipeline(replicationConfig, Collections.emptyList(),
+        Collections.emptyList(), storageTier);
+  }
+
+  @Override
+  public Pipeline createPipeline(ReplicationConfig replicationConfig,
       List<DatanodeDetails> excludedNodes, List<DatanodeDetails> favoredNodes)
       throws IOException {
     checkIfPipelineCreationIsAllowed(replicationConfig);
@@ -258,6 +268,32 @@ public class PipelineManagerImpl implements PipelineManager {
         pipeline = pipelineFactory.create(replicationConfig,
             excludedNodes, favoredNodes);
       } catch (IOException e) {
+        metrics.incNumPipelineCreationFailed();
+        throw e;
+      }
+      addPipelineToManager(pipeline);
+      return pipeline;
+    } finally {
+      releaseWriteLock();
+    }
+  }
+
+  @Override
+  public Pipeline createPipeline(ReplicationConfig replicationConfig,
+      List<DatanodeDetails> excludedNodes, List<DatanodeDetails> favoredNodes,
+      StorageTier storageTier)
+      throws IOException {
+    checkIfPipelineCreationIsAllowed(replicationConfig);
+
+    acquireWriteLock();
+    final Pipeline pipeline;
+    try {
+      try {
+        pipeline = pipelineFactory.create(replicationConfig,
+            excludedNodes, favoredNodes, storageTier);
+      } catch (IOException e) {
+        LOG.debug("Failed to create pipeline with replicationConfig {} storageTier {}.",
+            replicationConfig, storageTier, e);
         metrics.incNumPipelineCreationFailed();
         throw e;
       }
@@ -365,12 +401,27 @@ public class PipelineManagerImpl implements PipelineManager {
   }
 
   @Override
+  public List<Pipeline> getPipelines(ReplicationConfig config,
+      Pipeline.PipelineState state, StorageTier storageTier) {
+    return stateManager.getPipelines(config, state, storageTier);
+  }
+
+  @Override
   public List<Pipeline> getPipelines(
       ReplicationConfig replicationConfig,
       Pipeline.PipelineState state, Collection<DatanodeDetails> excludeDns,
       Collection<PipelineID> excludePipelines) {
     return stateManager
         .getPipelines(replicationConfig, state, excludeDns, excludePipelines);
+  }
+
+  @Override
+  public List<Pipeline> getPipelines(
+      ReplicationConfig replicationConfig,
+      Pipeline.PipelineState state, Collection<DatanodeDetails> excludeDns,
+      Collection<PipelineID> excludePipelines, StorageTier storageTier) {
+    return stateManager
+        .getPipelines(replicationConfig, state, excludeDns, excludePipelines, storageTier);
   }
 
   /**

@@ -51,6 +51,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javax.management.ObjectName;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.HddsConfigKeys;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
@@ -706,12 +707,47 @@ public class SCMNodeManager implements NodeManager {
         datanodeInfo.updateStorageReports(nodeReport.getStorageReportList());
         datanodeInfo.updateMetaDataStorageReports(nodeReport.
             getMetadataStorageReportList());
+        updateSupportedStorageTier(datanodeInfo, nodeReport);
         metrics.incNumNodeReportProcessed();
       }
     } catch (NodeNotFoundException e) {
       metrics.incNumNodeReportProcessingFailed();
       LOG.warn("Got node report from unregistered datanode {}",
           datanodeDetails);
+    }
+  }
+
+  private void updateSupportedStorageTier(DatanodeInfo originalDatanodeInfo,
+      NodeReportProto nodeReport) {
+    if (scmContext.getScm() == null || scmContext.getScm().getPipelineManager() == null) {
+      LOG.debug("Skip the updating of Pipeline supported StorageTier for Recon");
+      return;
+    }
+    long originalStorageTypesID =
+        NodeUtils.computeStorageTypesID(originalDatanodeInfo.getStorageReports(), originalDatanodeInfo);
+    long reportStorageTypesID =
+        NodeUtils.computeStorageTypesID(nodeReport.getStorageReportList(), originalDatanodeInfo);
+    Set<PipelineID> pipelines = nodeStateManager.getPipelineByDnID(originalDatanodeInfo.getID());
+    for (PipelineID pipelineId : pipelines) {
+      try {
+        Pipeline pipeline = scmContext.getScm().getPipelineManager().getPipeline(pipelineId);
+        if (originalStorageTypesID != reportStorageTypesID ||
+            pipeline.getSupportedStorageTier() == null ||
+            pipeline.getSupportedStorageTier().isEmpty()) {
+          List<StorageTier> storageTiers =
+              NodeUtils.getDatanodesStorageTypes(pipeline.getNodes(), this);
+          List<StorageTier> original = pipeline.getSupportedStorageTier();
+          pipeline.setSupportedStorageTier(storageTiers);
+          LOG.info("Pipeline {}: Updated SupportedStorageTier from {} to {} by Datanode {}."
+                  + " Reported StorageTypesID: {}.",
+              pipeline.getId(), original, storageTiers, originalDatanodeInfo.getUuid(),
+              reportStorageTypesID);
+        }
+      } catch (PipelineNotFoundException e) {
+        metrics.incNumNodeReportProcessingFailed();
+        LOG.warn("Reported Datanode {} pipeline {} is not found",
+            originalDatanodeInfo.getUuid(), pipelineId);
+      }
     }
   }
 
@@ -1168,14 +1204,16 @@ public class SCMNodeManager implements NodeManager {
       }
       List<StorageReportProto> storageReportProtos = node.getStorageReports();
       for (StorageReportProto reportProto : storageReportProtos) {
-        if (reportProto.getStorageType() == StorageTypeProto.DISK) {
+        if (NodeUtils.getStorageTypeFromStorageReportProto(reportProto, node)
+            == org.apache.hadoop.fs.StorageType.DISK) {
           nodeInfo.compute(keyPrefix + UsageMetrics.DiskCapacity.name(),
               (k, v) -> v + reportProto.getCapacity());
           nodeInfo.compute(keyPrefix + UsageMetrics.DiskRemaining.name(),
               (k, v) -> v + reportProto.getRemaining());
           nodeInfo.compute(keyPrefix + UsageMetrics.DiskUsed.name(),
               (k, v) -> v + reportProto.getScmUsed());
-        } else if (reportProto.getStorageType() == StorageTypeProto.SSD) {
+        } else if (NodeUtils.getStorageTypeFromStorageReportProto(reportProto, node)
+            == org.apache.hadoop.fs.StorageType.SSD) {
           nodeInfo.compute(keyPrefix + UsageMetrics.SSDCapacity.name(),
               (k, v) -> v + reportProto.getCapacity());
           nodeInfo.compute(keyPrefix + UsageMetrics.SSDRemaining.name(),

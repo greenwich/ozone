@@ -19,6 +19,7 @@ package org.apache.hadoop.hdds.scm.pipeline;
 
 import java.io.IOException;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.scm.container.ContainerInfo;
 import org.apache.hadoop.hdds.scm.container.common.helpers.ExcludeList;
 
@@ -51,6 +52,10 @@ public interface WritableContainerProvider<T extends ReplicationConfig> {
    */
   ContainerInfo getContainer(long size, T repConfig,
       String owner, ExcludeList excludeList)
+      throws IOException;
+
+  ContainerInfo getContainer(long size, T repConfig,
+      String owner, ExcludeList excludeList, StorageTier storageTier)
       throws IOException;
 
 }

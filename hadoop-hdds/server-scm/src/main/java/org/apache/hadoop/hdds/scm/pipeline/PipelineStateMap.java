@@ -32,7 +32,9 @@ import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.scm.container.ContainerID;
 import org.apache.hadoop.hdds.scm.pipeline.Pipeline.PipelineState;
@@ -241,6 +243,29 @@ class PipelineStateMap {
 
   /**
    * Get list of pipeline corresponding to specified replication type,
+   * replication factor, pipeline state and storage tier.
+   *
+   * @param replicationConfig - ReplicationConfig
+   * @param state             - Required PipelineState
+   * @param storageTier       - Required storageTier
+   * @return List of pipelines with specified replication type,
+   * replication factor, pipeline state and storage tier
+   */
+  List<Pipeline> getPipelines(ReplicationConfig replicationConfig,
+      PipelineState state, StorageTier storageTier) {
+    Preconditions
+        .checkNotNull(replicationConfig, "ReplicationConfig cannot be null");
+    Preconditions.checkNotNull(state, "Pipeline state cannot be null");
+    Preconditions.checkNotNull(storageTier, "Pipeline storageTier cannot be null");
+    List<Pipeline> pipelines = getPipelines(replicationConfig, state);
+    return pipelines.stream()
+        .filter(pipeline -> pipeline.getSupportedStorageTier() != null
+            && pipeline.getSupportedStorageTier().contains(storageTier))
+        .collect(Collectors.toList());
+  }
+
+  /**
+   * Get list of pipeline corresponding to specified replication type,
    * replication factor and pipeline state.
    *
    * @param replicationConfig - ReplicationType
@@ -272,6 +297,69 @@ class PipelineStateMap {
     Iterator<Pipeline> iter = pipelines.iterator();
     while (iter.hasNext()) {
       Pipeline pipeline = iter.next();
+      if (!pipeline.getReplicationConfig().equals(replicationConfig) ||
+          pipeline.getPipelineState() != state ||
+          excludePipelines.contains(pipeline.getId())) {
+        iter.remove();
+      } else {
+        for (DatanodeDetails dn : pipeline.getNodes()) {
+          if (excludeDns.contains(dn)) {
+            iter.remove();
+            break;
+          }
+        }
+      }
+    }
+
+    return pipelines;
+  }
+
+  /**
+   * Get list of pipeline corresponding to specified replication type,
+   * replication factor, pipeline state, storage tier with exclusions.
+   *
+   * @param replicationConfig - ReplicationConfig
+   * @param state             - Required PipelineState
+   * @param excludeDns        dns to exclude
+   * @param excludePipelines  pipelines to exclude
+   * @param storageTier       - Required storageTier
+   * @return List of pipelines matching the criteria
+   */
+  List<Pipeline> getPipelines(ReplicationConfig replicationConfig,
+      PipelineState state, Collection<DatanodeDetails> excludeDns,
+      Collection<PipelineID> excludePipelines, StorageTier storageTier) {
+    Preconditions
+        .checkNotNull(replicationConfig, "ReplicationConfig cannot be null");
+    Preconditions.checkNotNull(state, "Pipeline state cannot be null");
+    Preconditions
+        .checkNotNull(excludeDns, "Datanode exclude list cannot be null");
+    Preconditions
+        .checkNotNull(excludePipelines, "Pipeline exclude list cannot be null");
+    Preconditions
+        .checkNotNull(storageTier, "Pipeline storageTier cannot be null");
+
+    List<Pipeline> pipelines = null;
+    if (state == PipelineState.OPEN) {
+      pipelines = new ArrayList<>(query2OpenPipelines.getOrDefault(
+          replicationConfig, Collections.emptyList()));
+      if (excludeDns.isEmpty() && excludePipelines.isEmpty()) {
+        return pipelines.stream()
+            .filter(pipeline -> pipeline.getSupportedStorageTier() != null
+                && pipeline.getSupportedStorageTier().contains(storageTier))
+            .collect(Collectors.toList());
+      }
+    } else {
+      pipelines = new ArrayList<>(pipelineMap.values());
+    }
+
+    Iterator<Pipeline> iter = pipelines.iterator();
+    while (iter.hasNext()) {
+      Pipeline pipeline = iter.next();
+      if (pipeline.getSupportedStorageTier() == null
+          || !pipeline.getSupportedStorageTier().contains(storageTier)) {
+        iter.remove();
+        continue;
+      }
       if (!pipeline.getReplicationConfig().equals(replicationConfig) ||
           pipeline.getPipelineState() != state ||
           excludePipelines.contains(pipeline.getId())) {

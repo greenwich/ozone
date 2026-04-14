@@ -37,6 +37,7 @@ import org.apache.hadoop.hdds.scm.ScmConfigKeys;
 import org.apache.hadoop.hdds.scm.container.ContainerReplica;
 import org.apache.hadoop.hdds.scm.node.NodeManager;
 import org.apache.hadoop.hdds.scm.node.NodeStatus;
+import org.apache.hadoop.hdds.scm.node.NodeUtils;
 import org.apache.hadoop.hdds.scm.node.states.NodeNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,8 +100,7 @@ public class ECPipelineProvider extends PipelineProvider<ECReplicationConfig> {
       throws IOException {
     StorageType storageType = null;
     if (storageTier != null && storageTier != StorageTier.EMPTY) {
-      storageType = StorageTierUtil.getStorageTypeForUniformStorageTier(
-          storageTier, replicationConfig);
+      storageType = StorageTierUtil.getStorageTypeForUniformStorageTier(storageTier);
     }
     List<DatanodeDetails> dns = placementPolicy
         .chooseDatanodes(excludedNodes, favoredNodes,
@@ -152,12 +152,14 @@ public class ECPipelineProvider extends PipelineProvider<ECReplicationConfig> {
 
   private Pipeline createPipelineInternal(ECReplicationConfig repConfig,
       List<DatanodeDetails> dns, Map<DatanodeDetails, Integer> indexes) {
+    List<StorageTier> storageTiers = NodeUtils.getDatanodesStorageTypes(dns, getNodeManager());
     return Pipeline.newBuilder()
         .setId(PipelineID.randomId())
         .setState(Pipeline.PipelineState.ALLOCATED)
         .setReplicationConfig(repConfig)
         .setNodes(dns)
         .setReplicaIndexes(indexes)
+        .setSupportedStorageTier(storageTiers)
         .build();
   }
 

@@ -83,7 +83,7 @@ public class PipelineFactory {
       ReplicationConfig replicationConfig, List<DatanodeDetails> excludedNodes,
       List<DatanodeDetails> favoredNodes)
       throws IOException {
-    return create(replicationConfig, excludedNodes, favoredNodes, null);
+    return create(replicationConfig, excludedNodes, favoredNodes, StorageTier.getDefaultTier());
   }
 
   public Pipeline create(

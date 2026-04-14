@@ -23,9 +23,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.hadoop.hdds.client.StandaloneReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.scm.container.ContainerReplica;
 import org.apache.hadoop.hdds.scm.node.NodeManager;
+import org.apache.hadoop.hdds.scm.node.NodeUtils;
 import org.apache.hadoop.hdds.scm.pipeline.Pipeline.PipelineState;
 
 /**
@@ -61,23 +63,28 @@ public class SimplePipelineProvider
     }
 
     Collections.shuffle(dns);
+    List<DatanodeDetails> selectedDns = dns.subList(0,
+        replicationConfig.getReplicationFactor().getNumber());
+    List<StorageTier> storageTiers = NodeUtils.getDatanodesStorageTypes(selectedDns, getNodeManager());
     return Pipeline.newBuilder()
         .setId(PipelineID.randomId())
         .setState(PipelineState.OPEN)
         .setReplicationConfig(replicationConfig)
-        .setNodes(dns.subList(0,
-            replicationConfig.getReplicationFactor().getNumber()))
+        .setNodes(selectedDns)
+        .setSupportedStorageTier(storageTiers)
         .build();
   }
 
   @Override
   public Pipeline create(StandaloneReplicationConfig replicationConfig,
       List<DatanodeDetails> nodes) {
+    List<StorageTier> storageTiers = NodeUtils.getDatanodesStorageTypes(nodes, getNodeManager());
     return Pipeline.newBuilder()
         .setId(PipelineID.randomId())
         .setState(PipelineState.OPEN)
         .setReplicationConfig(replicationConfig)
         .setNodes(nodes)
+        .setSupportedStorageTier(storageTiers)
         .build();
   }
 

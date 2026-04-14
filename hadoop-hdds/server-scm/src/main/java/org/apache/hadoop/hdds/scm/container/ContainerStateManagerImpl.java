@@ -34,6 +34,7 @@ import static org.apache.hadoop.hdds.scm.ScmConfigKeys.OZONE_SCM_CONTAINER_LOCK_
 
 import com.google.common.util.concurrent.Striped;
 import java.io.IOException;
+import jakarta.annotation.Nonnull;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
@@ -46,6 +47,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.StorageUnit;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos.ContainerInfoProto;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos.LifeCycleEvent;
@@ -530,6 +532,57 @@ public final class ContainerStateManagerImpl
       try (AutoCloseableLock ignored = readLock(id)) {
         final ContainerInfo containerInfo = containers.getContainerInfo(id);
         if (containerInfo.getUsedBytes() + size <= this.containerSize) {
+          containerInfo.updateLastUsedTime();
+          return containerInfo;
+        }
+      }
+    }
+    return null;
+  }
+
+  @Override
+  public ContainerInfo getMatchingContainerAndStorageTier(final long size,
+      String owner, PipelineID pipelineID,
+      NavigableSet<ContainerID> containerIDs,
+      StorageTier storageTier) {
+    if (containerIDs.isEmpty()) {
+      return null;
+    }
+
+    // Get the last used container and find container above the last used
+    // container ID.
+    final ContainerState key = new ContainerState(owner, pipelineID);
+    final ContainerID lastID =
+        lastUsedMap.getOrDefault(key, containerIDs.first());
+
+    NavigableSet<ContainerID> resultSet = containerIDs.tailSet(lastID, false);
+    if (resultSet.isEmpty()) {
+      resultSet = containerIDs;
+    }
+    ContainerInfo selectedContainer =
+        findContainerWithSpaceAndStorageTier(size, resultSet, storageTier);
+    if (selectedContainer == null) {
+      resultSet = containerIDs.headSet(lastID, true);
+      selectedContainer =
+          findContainerWithSpaceAndStorageTier(size, resultSet, storageTier);
+    }
+
+    // TODO: cleanup entries in lastUsedMap
+    if (selectedContainer != null) {
+      lastUsedMap.put(key, selectedContainer.containerID());
+    }
+    return selectedContainer;
+  }
+
+  private ContainerInfo findContainerWithSpaceAndStorageTier(final long size,
+      final NavigableSet<ContainerID> searchSet,
+      @Nonnull StorageTier storageTier) {
+    for (ContainerID id : searchSet) {
+      try (AutoCloseableLock ignored = readLock(id)) {
+        final ContainerInfo containerInfo = containers.getContainerInfo(id);
+        if (containerInfo.getUsedBytes() + size <= this.containerSize &&
+            containerInfo.getStorageTier() != null &&
+            containerInfo.getStorageTier().equals(storageTier)) {
           containerInfo.updateLastUsedTime();
           return containerInfo;
         }

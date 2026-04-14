@@ -52,6 +52,7 @@ import java.util.stream.Stream;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.hdds.conf.ReconfigurationHandler;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
@@ -233,10 +234,19 @@ public class SCMClientProtocolServer implements
   @Override
   public ContainerWithPipeline allocateContainer(HddsProtos.ReplicationType
       replicationType, HddsProtos.ReplicationFactor factor,
-      String owner) throws IOException {
-    ReplicationConfig replicationConfig =
-        ReplicationConfig.fromProtoTypeAndFactor(replicationType, factor);
-    return allocateContainer(replicationConfig, owner);
+      String owner, HddsProtos.StorageTierProto storageTier) throws IOException {
+    if (scm.getScmContext().isInSafeMode()) {
+      throw new SCMException("SafeModePrecheck failed for allocateContainer",
+          ResultCodes.SAFE_MODE_EXCEPTION);
+    }
+    getScm().checkAdminAccess(getRemoteUser(), false);
+    final ContainerInfo container = scm.getContainerManager()
+        .allocateContainer(
+            ReplicationConfig.fromProtoTypeAndFactor(replicationType, factor),
+            owner, StorageTier.fromProto(storageTier));
+    final Pipeline pipeline = scm.getPipelineManager()
+        .getPipeline(container.getPipelineID());
+    return new ContainerWithPipeline(container, pipeline);
   }
 
   @Override
@@ -253,7 +263,8 @@ public class SCMClientProtocolServer implements
       }
       getScm().checkAdminAccess(getRemoteUser(), false);
       final ContainerInfo container = scm.getContainerManager()
-          .allocateContainer(replicationConfig, owner);
+          .allocateContainer(replicationConfig, owner,
+              StorageTier.getDefaultTier());
       final Pipeline pipeline = scm.getPipelineManager()
           .getPipeline(container.getPipelineID());
       ContainerWithPipeline cp = new ContainerWithPipeline(container, pipeline);
@@ -848,8 +859,10 @@ public class SCMClientProtocolServer implements
     }
     try {
       getScm().checkAdminAccess(getRemoteUser(), false);
+      // TODO: Support Allocate Pipeline Command with StorageTier
       Pipeline result = scm.getPipelineManager().createPipeline(
-          ReplicationConfig.fromProtoTypeAndFactor(type, factor));
+          ReplicationConfig.fromProtoTypeAndFactor(type, factor),
+          org.apache.hadoop.hdds.client.StorageTier.getDefaultTier());
       AUDIT.logWriteSuccess(buildAuditMessageForSuccess(
           SCMAction.CREATE_PIPELINE, auditMap));
       return result;

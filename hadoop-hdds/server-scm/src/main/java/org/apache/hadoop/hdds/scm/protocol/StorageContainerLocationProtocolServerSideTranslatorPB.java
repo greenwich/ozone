@@ -794,7 +794,11 @@ public final class StorageContainerLocationProtocolServerSideTranslatorPB
         request.getReplicationFactor(),
         request.getEcReplicationConfig()
     );
-    ContainerWithPipeline cp = impl.allocateContainer(replicationConfig, request.getOwner());
+    ContainerWithPipeline cp = impl.allocateContainer(
+        request.getReplicationType(),
+        request.getReplicationFactor(),
+        request.getOwner(),
+        request.getStorageTier());
     return ContainerResponseProto.newBuilder()
         .setContainerWithPipeline(cp.getProtobuf(clientVersion))
         .setErrorCode(ContainerResponseProto.Error.success)

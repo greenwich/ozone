@@ -143,6 +143,8 @@ message Pipeline {
 
     optional DatanodeIDProto leaderDatanodeID = 101;
     optional DatanodeIDProto suggestedLeaderDatanodeID = 102;
+
+    repeated StorageTierProto supportedStorageTier = 1000;
 }
 
 message KeyValue {
@@ -272,6 +274,7 @@ message ContainerInfoProto {
     required ReplicationType replicationType  = 11;
     optional ECReplicationConfig ecReplicationConfig = 12;
     optional bool suppressed = 13;
+    optional StorageTierProto storageTier = 1000;
 }
 
 message ContainerWithPipeline {

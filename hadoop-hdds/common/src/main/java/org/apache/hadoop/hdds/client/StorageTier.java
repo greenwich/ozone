@@ -26,14 +26,12 @@ import org.apache.hadoop.hdds.protocol.proto.HddsProtos.StorageTierProto;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.apache.hadoop.hdds.protocol.proto.HddsProtos.ReplicationFactor.ONE;
-import static org.apache.hadoop.hdds.protocol.proto.HddsProtos.ReplicationFactor.THREE;
 
 /**
  * Ozone specific storage tiers.
@@ -47,8 +45,27 @@ public enum StorageTier {
   private final String tierName;
   private final List<StorageType> storageTypes;
   private final boolean uniformStorageType;
-  private static final Map<StorageTier, Map<ReplicationConfig, List<StorageType>>>
+  private static final Map<StorageTier, Map<Integer, List<StorageType>>>
       CACHE = new EnumMap<>(StorageTier.class);
+  private static final int MAX_NODE_COUNT = 20;
+
+  /**
+   * Maps each StorageType to a unique prime number. By multiplying these primes,
+   * we generate a unique product representing a StorageTier ID.
+   * When the number of nodes is the same, we can use this StorageTier ID
+   * to uniquely identify a StorageTier.
+   */
+  private static final Map<StorageType, Integer> STORAGE_TYPE_PRIME_MAP = new HashMap<>();
+
+  /**
+   * Map&lt;node count, Map&lt;StorageTier ID, StorageTier&gt;&gt;.
+   * When the number of nodes is the same, we can use this StorageTier ID
+   * to uniquely identify a StorageTier.
+   */
+  private static final Map<Integer, Map<Long, StorageTier>>
+      NODE_COUNT_TO_STORAGE_TIER_MAP = new HashMap<>();
+
+  private static StorageTier defaultTier = DISK;
 
   StorageTier(String tierName) {
     this.tierName = tierName;
@@ -77,18 +94,23 @@ public enum StorageTier {
   }
 
   static {
-    // Precompute storage type mappings for each replication config
-    for (StorageTier tier : StorageTier.values()) {
-      Map<ReplicationConfig, List<StorageType>> tierCache = new HashMap<>();
-      List<ReplicationConfig> replicationConfigs = Arrays.asList(
-          RatisReplicationConfig.getInstance(ONE),
-          RatisReplicationConfig.getInstance(THREE),
-          StandaloneReplicationConfig.getInstance(ONE),
-          StandaloneReplicationConfig.getInstance(THREE)
-      );
+    // Assign unique primes to each StorageType
+    int[] primes = {2, 3, 5, 7, 11};
+    int idx = 0;
+    for (StorageType value : StorageType.values()) {
+      STORAGE_TYPE_PRIME_MAP.put(value, primes[idx++]);
+    }
 
-      for (ReplicationConfig config : replicationConfigs) {
-        tierCache.put(config, tier.computeStorageTypes(config));
+    // Precompute storage type mappings for each node count
+    for (StorageTier tier : StorageTier.values()) {
+      Map<Integer, List<StorageType>> tierCache = new HashMap<>();
+      for (int nodeCount = 0; nodeCount <= MAX_NODE_COUNT; nodeCount++) {
+        List<StorageType> types = tier.computeStorageTypes(nodeCount);
+        tierCache.put(nodeCount, types);
+        long id = computeId(types);
+        NODE_COUNT_TO_STORAGE_TIER_MAP
+            .computeIfAbsent(nodeCount, k -> new HashMap<>())
+            .put(id, tier);
       }
       CACHE.put(tier, tierCache);
     }
@@ -131,45 +153,94 @@ public enum StorageTier {
   }
 
   /**
-   * Computes the list of StorageTypes based on replication configuration.
+   * Computes the list of StorageTypes based on node count.
    *
-   * @param replicationConfig The replication configuration.
-   * @return The list of StorageTypes for the given tier and replication configuration.
+   * @param nodeCount The number of nodes.
+   * @return The list of StorageTypes for the given tier and node count.
    */
-  private List<StorageType> computeStorageTypes(
-      ReplicationConfig replicationConfig) {
+  private List<StorageType> computeStorageTypes(int nodeCount) {
     if (isUniformStorageType()) {
-      int numberOfNodes = replicationConfig.getRequiredNodes();
       if (storageTypes.isEmpty()) {
         return Collections.emptyList();
       }
-      return new ArrayList<>(Collections.nCopies(numberOfNodes, storageTypes.get(0)));
+      return Collections.nCopies(nodeCount, storageTypes.get(0));
     } else {
       throw new UnsupportedOperationException(
-          "Unsupported not UniformStorage Storage Tier: " + replicationConfig);
+          "Unsupported not uniform StorageTier: " + this);
     }
   }
 
   /**
-   * Maps a StorageTier to its corresponding StorageType based on replication type.
+   * Maps a StorageTier to its corresponding StorageType list based on node count.
    *
-   * @param replicationConfig The replication configuration.
-   * @return The list of StorageTypes corresponding to the given tier and replication configuration.
-   * @throws IllegalArgumentException if the replication configuration is not supported.
+   * @param nodeCount The number of nodes.
+   * @return The list of StorageTypes corresponding to the given tier and node count.
+   * @throws IllegalArgumentException if the node count is not supported.
    */
-  public List<StorageType> getStorageTypes(
-      ReplicationConfig replicationConfig) {
-    Map<ReplicationConfig, List<StorageType>> tierCache = CACHE.get(this);
+  public List<StorageType> getStorageTypes(int nodeCount) {
+    Map<Integer, List<StorageType>> tierCache = CACHE.get(this);
 
     if (tierCache != null) {
-      List<StorageType> cachedStorageType = tierCache.get(replicationConfig);
+      List<StorageType> cachedStorageType = tierCache.get(nodeCount);
       if (cachedStorageType != null) {
         return cachedStorageType;
       }
     }
 
-    throw new IllegalArgumentException("Unsupported ReplicationConfig: " +
-        replicationConfig + " for StorageTier: " + getTierName());
+    throw new IllegalArgumentException("Unsupported node count: " +
+        nodeCount + " for StorageTier: " + getTierName());
+  }
+
+  /**
+   * Calculates a unique ID for a collection of StorageTypes by multiplying
+   * their associated prime numbers.
+   *
+   * @param types the StorageType collection to calculate the ID for
+   * @return the computed ID
+   */
+  public static long computeId(Collection<StorageType> types) {
+    long computedId = 1;
+    for (StorageType type : types) {
+      long prime = STORAGE_TYPE_PRIME_MAP.get(type);
+      if (computedId > Long.MAX_VALUE / prime) {
+        throw new ArithmeticException("Overflow detected when calculating ID for StorageType.");
+      }
+      computedId *= prime;
+    }
+    return computedId;
+  }
+
+  /**
+   * Returns the StorageTier corresponding to the given node count and computed ID.
+   *
+   * @param nodeCount number of nodes
+   * @param id the computed StorageTier ID
+   * @return the matching StorageTier, or null if not found
+   */
+  public static StorageTier fromID(int nodeCount, long id) {
+    if (nodeCount > MAX_NODE_COUNT) {
+      throw new IllegalArgumentException("Not supported node count: " + nodeCount
+          + " Max supported node count: " + MAX_NODE_COUNT);
+    }
+    Map<Long, StorageTier> map = NODE_COUNT_TO_STORAGE_TIER_MAP.get(nodeCount);
+    if (map != null) {
+      return map.get(id);
+    }
+    return null;
+  }
+
+  /**
+   * Returns the default StorageTier.
+   */
+  public static StorageTier getDefaultTier() {
+    return defaultTier;
+  }
+
+  /**
+   * Sets the default StorageTier.
+   */
+  public static void setDefault(StorageTier storageTier) {
+    defaultTier = storageTier;
   }
 
 }

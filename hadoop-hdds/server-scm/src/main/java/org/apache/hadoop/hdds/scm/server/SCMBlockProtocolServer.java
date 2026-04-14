@@ -44,7 +44,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
+import jakarta.annotation.Nonnull;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.DatanodeID;
@@ -189,7 +191,9 @@ public class SCMBlockProtocolServer implements
       long size, int num,
       ReplicationConfig replicationConfig,
       String owner, ExcludeList excludeList,
-      String clientMachine
+      String clientMachine,
+      @Nonnull StoragePolicy storagePolicy,
+      boolean allowFallbackStoragePolicy
   ) throws IOException {
     long startNanos = Time.monotonicNowNanos();
     Map<String, String> auditMap = Maps.newHashMap();
@@ -198,6 +202,9 @@ public class SCMBlockProtocolServer implements
     auditMap.put("replication", replicationConfig.toString());
     auditMap.put("owner", owner);
     auditMap.put("client", clientMachine);
+    auditMap.put("storagePolicy", storagePolicy.toString());
+    auditMap.put("allowFallbackStoragePolicy",
+        String.valueOf(allowFallbackStoragePolicy));
     List<AllocatedBlock> blocks = new ArrayList<>(num);
 
     if (LOG.isDebugEnabled()) {
@@ -207,7 +214,8 @@ public class SCMBlockProtocolServer implements
     try {
       for (int i = 0; i < num; i++) {
         AllocatedBlock block = scm.getScmBlockManager()
-            .allocateBlock(size, replicationConfig, owner, excludeList);
+            .allocateBlock(size, replicationConfig, owner, excludeList,
+                storagePolicy, allowFallbackStoragePolicy);
         if (block != null) {
           // Sort the datanodes if client machine is specified
           final Node client = getClientNode(clientMachine);

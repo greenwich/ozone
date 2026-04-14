@@ -18,6 +18,7 @@
 package org.apache.hadoop.hdds.scm.pipeline;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,6 +41,7 @@ import org.apache.hadoop.hdds.scm.exceptions.SCMException;
 import org.apache.hadoop.hdds.scm.ha.SCMContext;
 import org.apache.hadoop.hdds.scm.node.NodeManager;
 import org.apache.hadoop.hdds.scm.node.NodeStatus;
+import org.apache.hadoop.hdds.scm.node.NodeUtils;
 import org.apache.hadoop.hdds.scm.pipeline.Pipeline.PipelineState;
 import org.apache.hadoop.hdds.scm.pipeline.leader.choose.algorithms.LeaderChoosePolicy;
 import org.apache.hadoop.hdds.scm.pipeline.leader.choose.algorithms.LeaderChoosePolicyFactory;
@@ -185,8 +187,7 @@ public class RatisPipelineProvider
       }
       StorageType storageType = null;
       if (storageTier != null && storageTier != StorageTier.EMPTY) {
-        storageType = StorageTierUtil.getStorageTypeForUniformStorageTier(
-            storageTier, replicationConfig);
+        storageType = StorageTierUtil.getStorageTypeForUniformStorageTier(storageTier);
       }
       dns = placementPolicy.chooseDatanodes(excludedNodes,
           favoredNodes, factor.getNumber(), minRatisVolumeSizeBytes,
@@ -198,6 +199,9 @@ public class RatisPipelineProvider
 
     DatanodeDetails suggestedLeader = leaderChoosePolicy.chooseLeader(dns);
 
+    List<StorageTier> storageTiers = NodeUtils.getDatanodesStorageTypes(dns, getNodeManager());
+    Preconditions.checkArgument(storageTiers.contains(storageTier),
+        "Created pipeline nodes do not support requested storageTier: " + storageTier);
     Pipeline pipeline = Pipeline.newBuilder()
         .setId(PipelineID.randomId())
         .setState(PipelineState.ALLOCATED)
@@ -205,6 +209,7 @@ public class RatisPipelineProvider
         .setNodes(dns)
         .setSuggestedLeaderId(
             suggestedLeader != null ? suggestedLeader.getID() : null)
+        .setSupportedStorageTier(storageTiers)
         .build();
 
     // Send command to datanodes to create pipeline
@@ -217,8 +222,8 @@ public class RatisPipelineProvider
     createCommand.setTerm(scmContext.getTermOfLeader());
 
     dns.forEach(node -> {
-      LOG.info("Sending CreatePipelineCommand for pipeline:{} to datanode:{}",
-          pipeline.getId(), node);
+      LOG.info("Sending CreatePipelineCommand for pipeline:{} to datanode:{} storageTier:{}",
+          pipeline.getId(), node, storageTier);
       eventPublisher.fireEvent(SCMEvents.DATANODE_COMMAND,
           new CommandForDatanode<>(node, createCommand));
     });
@@ -229,11 +234,13 @@ public class RatisPipelineProvider
   @Override
   public Pipeline create(RatisReplicationConfig replicationConfig,
       List<DatanodeDetails> nodes) {
+    List<StorageTier> storageTiers = NodeUtils.getDatanodesStorageTypes(nodes, getNodeManager());
     return Pipeline.newBuilder()
         .setId(PipelineID.randomId())
         .setState(PipelineState.ALLOCATED)
         .setReplicationConfig(replicationConfig)
         .setNodes(nodes)
+        .setSupportedStorageTier(storageTiers)
         .build();
   }
 

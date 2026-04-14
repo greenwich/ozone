@@ -259,7 +259,7 @@ public final class StorageContainerLocationProtocolClientSideTranslatorPB
   @Override
   public ContainerWithPipeline allocateContainer(
       HddsProtos.ReplicationType type, HddsProtos.ReplicationFactor factor,
-      String owner) throws IOException {
+      String owner, HddsProtos.StorageTierProto storageTier) throws IOException {
     ReplicationConfig replicationConfig =
         ReplicationConfig.fromProtoTypeAndFactor(type, factor);
     return allocateContainer(replicationConfig, owner);
