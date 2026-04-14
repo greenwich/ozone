@@ -29,6 +29,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.scm.ContainerPlacementStatus;
@@ -203,13 +204,25 @@ public final class SCMContainerPlacementRackScatter
    * @throws SCMException  SCMException
    */
   @Override
-  @SuppressWarnings("checkstyle:methodlength")
   protected List<DatanodeDetails> chooseDatanodesInternal(
           List<DatanodeDetails> usedNodes,
           final List<DatanodeDetails> excludedNodes,
           final List<DatanodeDetails> favoredNodes,
           final int nodesRequired, final long metadataSizeRequired,
           final long dataSizeRequired) throws SCMException {
+    return chooseDatanodesInternal(usedNodes, excludedNodes, favoredNodes,
+        nodesRequired, metadataSizeRequired, dataSizeRequired, null);
+  }
+
+  @Override
+  @SuppressWarnings("checkstyle:methodlength")
+  protected List<DatanodeDetails> chooseDatanodesInternal(
+          List<DatanodeDetails> usedNodes,
+          final List<DatanodeDetails> excludedNodes,
+          final List<DatanodeDetails> favoredNodes,
+          final int nodesRequired, final long metadataSizeRequired,
+          final long dataSizeRequired,
+          final StorageType storageType) throws SCMException {
     if (nodesRequired <= 0) {
       String errorMsg = "num of nodes required to choose should bigger" +
           "than 0, but the given num is " + nodesRequired;

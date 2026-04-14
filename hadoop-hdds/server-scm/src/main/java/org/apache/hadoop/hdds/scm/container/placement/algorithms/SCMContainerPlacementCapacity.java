@@ -19,6 +19,7 @@ package org.apache.hadoop.hdds.scm.container.placement.algorithms;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.scm.SCMCommonPlacementPolicy;
@@ -105,10 +106,20 @@ public final class SCMContainerPlacementCapacity
           List<DatanodeDetails> favoredNodes,
           final int nodesRequired, long metadataSizeRequired,
           long dataSizeRequired) throws SCMException {
+    return chooseDatanodesInternal(usedNodes, excludedNodes, favoredNodes,
+            nodesRequired, metadataSizeRequired, dataSizeRequired, null);
+  }
+
+  @Override
+  protected List<DatanodeDetails> chooseDatanodesInternal(
+          List<DatanodeDetails> usedNodes, List<DatanodeDetails> excludedNodes,
+          List<DatanodeDetails> favoredNodes,
+          final int nodesRequired, long metadataSizeRequired,
+          long dataSizeRequired, StorageType storageType) throws SCMException {
     metrics.incrDatanodeRequestCount(nodesRequired);
     List<DatanodeDetails> healthyNodes = super.chooseDatanodesInternal(
             usedNodes, excludedNodes, favoredNodes, nodesRequired,
-            metadataSizeRequired, dataSizeRequired);
+            metadataSizeRequired, dataSizeRequired, storageType);
     if (healthyNodes.size() == nodesRequired) {
       return healthyNodes;
     }

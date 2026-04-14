@@ -34,6 +34,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.StorageContainerDatanodeProtocolProtos.MetadataStorageReportProto;
@@ -138,7 +139,19 @@ public abstract class SCMCommonPlacementPolicy implements
           long dataSizeRequired) throws SCMException {
     return this.chooseDatanodes(UNSET_USED_NODES, excludedNodes,
           favoredNodes, nodesRequired, metadataSizeRequired,
-          dataSizeRequired);
+          dataSizeRequired, null);
+  }
+
+  @Override
+  public final List<DatanodeDetails> chooseDatanodes(
+          List<DatanodeDetails> excludedNodes,
+          List<DatanodeDetails> favoredNodes, int nodesRequired,
+          long metadataSizeRequired,
+          long dataSizeRequired,
+          StorageType storageType) throws SCMException {
+    return this.chooseDatanodes(UNSET_USED_NODES, excludedNodes,
+          favoredNodes, nodesRequired, metadataSizeRequired,
+          dataSizeRequired, storageType);
   }
 
   /**
@@ -191,6 +204,22 @@ public abstract class SCMCommonPlacementPolicy implements
           List<DatanodeDetails> favoredNodes,
           int nodesRequired, long metadataSizeRequired, long dataSizeRequired)
           throws SCMException {
+    return chooseDatanodes(usedNodes, excludedNodes, favoredNodes,
+            nodesRequired, metadataSizeRequired, dataSizeRequired, null);
+  }
+
+  /**
+   * Given size required and storage type, return set of datanodes
+   * that satisfy the nodes, size, and storage type requirement.
+   */
+  @Override
+  public final List<DatanodeDetails> chooseDatanodes(
+          List<DatanodeDetails> usedNodes,
+          List<DatanodeDetails> excludedNodes,
+          List<DatanodeDetails> favoredNodes,
+          int nodesRequired, long metadataSizeRequired, long dataSizeRequired,
+          StorageType storageType)
+          throws SCMException {
 /*
   This method calls the chooseDatanodeInternal after fixing
   the excludeList to get the DatanodeDetails from the node manager.
@@ -206,7 +235,7 @@ public abstract class SCMCommonPlacementPolicy implements
  */
     return chooseDatanodesInternal(validateDatanodes(usedNodes),
             validateDatanodes(excludedNodes), favoredNodes, nodesRequired,
-            metadataSizeRequired, dataSizeRequired);
+            metadataSizeRequired, dataSizeRequired, storageType);
   }
 
   /**
@@ -226,6 +255,29 @@ public abstract class SCMCommonPlacementPolicy implements
       List<DatanodeDetails> favoredNodes,
       int nodesRequired, long metadataSizeRequired, long dataSizeRequired)
       throws SCMException {
+    return chooseDatanodesInternal(usedNodes, excludedNodes, favoredNodes,
+        nodesRequired, metadataSizeRequired, dataSizeRequired, null);
+  }
+
+  /**
+   * Pipeline placement choose datanodes to join the pipeline.
+   * @param usedNodes - list of the datanodes to already chosen in the
+   *                      pipeline.
+   * @param excludedNodes - excluded nodes
+   * @param favoredNodes  - list of nodes preferred.
+   * @param nodesRequired - number of datanodes required.
+   * @param dataSizeRequired - size required for the container.
+   * @param metadataSizeRequired - size required for Ratis metadata.
+   * @param storageType - required storage type, or null for any.
+   * @return a list of chosen datanodeDetails
+   * @throws SCMException when chosen nodes are not enough in numbers
+   */
+  protected List<DatanodeDetails> chooseDatanodesInternal(
+      List<DatanodeDetails> usedNodes, List<DatanodeDetails> excludedNodes,
+      List<DatanodeDetails> favoredNodes,
+      int nodesRequired, long metadataSizeRequired, long dataSizeRequired,
+      StorageType storageType)
+      throws SCMException {
     List<DatanodeDetails> healthyNodes =
         nodeManager.getNodes(NodeStatus.inServiceHealthy());
     if (excludedNodes != null) {
@@ -234,9 +286,16 @@ public abstract class SCMCommonPlacementPolicy implements
     if (usedNodes != null) {
       healthyNodes.removeAll(usedNodes);
     }
+
+    // Filter by storage type if specified
+    if (storageType != null) {
+      healthyNodes = filterByStorageType(healthyNodes, storageType);
+    }
+
     String msg;
     if (healthyNodes.isEmpty()) {
-      msg = "No healthy node found to allocate container.";
+      msg = "No healthy node found to allocate container."
+          + (storageType != null ? " StorageType: " + storageType : "");
       LOG.error(msg);
       throw new SCMException(msg, SCMException.ResultCodes
           .FAILED_TO_FIND_HEALTHY_NODES);
@@ -244,7 +303,8 @@ public abstract class SCMCommonPlacementPolicy implements
 
     if (healthyNodes.size() < nodesRequired) {
       msg = String.format("Not enough healthy nodes to allocate container. %d "
-              + " datanodes required. Found %d",
+              + " datanodes required. Found %d"
+              + (storageType != null ? " StorageType: " + storageType : ""),
           nodesRequired, healthyNodes.size());
       LOG.error(msg);
       throw new SCMException(msg,
@@ -339,6 +399,37 @@ public abstract class SCMCommonPlacementPolicy implements
               "bytes for metadata.", datanodeDetails, metadataSizeRequired);
     }
     return enoughForMeta;
+  }
+
+  /**
+   * Check if a datanode has any volume with the given storage type.
+   *
+   * @param datanodeDetails DatanodeDetails (must be DatanodeInfo)
+   * @param storageType the required StorageType
+   * @return true if the datanode has at least one volume with the given type
+   */
+  public static boolean hasStorageType(DatanodeDetails datanodeDetails,
+                                       StorageType storageType) {
+    Preconditions.checkArgument(datanodeDetails instanceof DatanodeInfo);
+    DatanodeInfo datanodeInfo = (DatanodeInfo) datanodeDetails;
+    return datanodeInfo.getStorageReports().stream()
+        .anyMatch(report -> report.getStorageType().name()
+            .equals(storageType.name()));
+  }
+
+  /**
+   * Filter nodes to only those that have at least one volume with
+   * the given storage type.
+   *
+   * @param nodes list of datanodes to filter
+   * @param storageType the required storage type
+   * @return filtered list of datanodes
+   */
+  public static List<DatanodeDetails> filterByStorageType(
+      List<DatanodeDetails> nodes, StorageType storageType) {
+    return nodes.stream()
+        .filter(dn -> hasStorageType(dn, storageType))
+        .collect(Collectors.toList());
   }
 
   /**

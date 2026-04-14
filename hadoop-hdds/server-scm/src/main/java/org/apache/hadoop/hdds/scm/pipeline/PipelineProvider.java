@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.scm.SCMCommonPlacementPolicy;
 import org.apache.hadoop.hdds.scm.container.ContainerReplica;
@@ -67,6 +68,19 @@ public abstract class PipelineProvider<REPLICATION_CONFIG
   protected abstract Pipeline create(REPLICATION_CONFIG replicationConfig,
       List<DatanodeDetails> excludedNodes, List<DatanodeDetails> favoredNodes)
       throws IOException;
+
+  /**
+   * Create a pipeline with the given replication config, excluded/favored
+   * nodes, and storage tier.
+   * Default implementation ignores storageTier and delegates to the
+   * 3-param create method.
+   */
+  protected Pipeline create(REPLICATION_CONFIG replicationConfig,
+      List<DatanodeDetails> excludedNodes, List<DatanodeDetails> favoredNodes,
+      StorageTier storageTier)
+      throws IOException {
+    return create(replicationConfig, excludedNodes, favoredNodes);
+  }
 
   protected abstract Pipeline create(
       REPLICATION_CONFIG replicationConfig,

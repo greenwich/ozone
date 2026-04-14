@@ -24,7 +24,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.client.RatisReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
+import org.apache.hadoop.hdds.client.StorageTierUtil;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.conf.StorageUnit;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
@@ -144,6 +147,14 @@ public class RatisPipelineProvider
   public synchronized Pipeline create(RatisReplicationConfig replicationConfig,
       List<DatanodeDetails> excludedNodes, List<DatanodeDetails> favoredNodes)
       throws IOException {
+    return create(replicationConfig, excludedNodes, favoredNodes, null);
+  }
+
+  @Override
+  public synchronized Pipeline create(RatisReplicationConfig replicationConfig,
+      List<DatanodeDetails> excludedNodes, List<DatanodeDetails> favoredNodes,
+      StorageTier storageTier)
+      throws IOException {
     if (exceedPipelineNumberLimit(replicationConfig)) {
       String limitInfo = (datanodePipelineLimit > 0)
           ? String.format("per datanode: %d", datanodePipelineLimit)
@@ -172,9 +183,14 @@ public class RatisPipelineProvider
           excludedNodes.addAll(excludeDueToEngagement);
         }
       }
+      StorageType storageType = null;
+      if (storageTier != null && storageTier != StorageTier.EMPTY) {
+        storageType = StorageTierUtil.getStorageTypeForUniformStorageTier(
+            storageTier, replicationConfig);
+      }
       dns = placementPolicy.chooseDatanodes(excludedNodes,
           favoredNodes, factor.getNumber(), minRatisVolumeSizeBytes,
-          containerSizeBytes);
+          containerSizeBytes, storageType);
       break;
     default:
       throw new IllegalStateException("Unknown factor: " + factor.name());

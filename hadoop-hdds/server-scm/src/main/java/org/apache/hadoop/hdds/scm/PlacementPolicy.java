@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.scm.container.ContainerReplica;
 
@@ -41,6 +42,19 @@ public interface PlacementPolicy {
   }
 
   /**
+   * Convenience method without usedNodes, with StorageType.
+   */
+  default List<DatanodeDetails> chooseDatanodes(
+          List<DatanodeDetails> excludedNodes,
+          List<DatanodeDetails> favoredNodes, int nodesRequired,
+          long metadataSizeRequired, long dataSizeRequired,
+          StorageType storageType) throws IOException {
+    return this.chooseDatanodes(Collections.emptyList(), excludedNodes,
+            favoredNodes, nodesRequired, metadataSizeRequired,
+            dataSizeRequired, storageType);
+  }
+
+  /**
    * Given an initial set of datanodes and the size required,
    * return set of datanodes that satisfy the nodes and size requirement.
    *
@@ -53,11 +67,37 @@ public interface PlacementPolicy {
    * @return list of datanodes chosen.
    * @throws IOException
    */
+  default List<DatanodeDetails> chooseDatanodes(
+          List<DatanodeDetails> usedNodes,
+          List<DatanodeDetails> excludedNodes,
+          List<DatanodeDetails> favoredNodes,
+          int nodesRequired, long metadataSizeRequired,
+          long dataSizeRequired) throws IOException {
+    return chooseDatanodes(usedNodes, excludedNodes, favoredNodes,
+            nodesRequired, metadataSizeRequired, dataSizeRequired, null);
+  }
+
+  /**
+   * Given an initial set of datanodes, the size required, and a storage type,
+   * return set of datanodes that satisfy the nodes, size, and storage type
+   * requirement.
+   *
+   * @param usedNodes - List of nodes already chosen for pipeline
+   * @param excludedNodes - list of nodes to be excluded.
+   * @param favoredNodes - list of nodes preferred.
+   * @param nodesRequired - number of datanodes required.
+   * @param dataSizeRequired - size required for the container.
+   * @param metadataSizeRequired - size required for Ratis metadata.
+   * @param storageType - required storage type, or null for any.
+   * @return list of datanodes chosen.
+   * @throws IOException
+   */
   List<DatanodeDetails> chooseDatanodes(List<DatanodeDetails> usedNodes,
           List<DatanodeDetails> excludedNodes,
           List<DatanodeDetails> favoredNodes,
           int nodesRequired, long metadataSizeRequired,
-          long dataSizeRequired) throws IOException;
+          long dataSizeRequired,
+          StorageType storageType) throws IOException;
 
   /**
    * Given a list of datanode and the number of replicas required, return

@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.scm.SCMCommonPlacementPolicy;
@@ -106,6 +107,19 @@ public final class SCMContainerPlacementRackAware
       List<DatanodeDetails> excludedNodes,
       List<DatanodeDetails> favoredNodes, int nodesRequired,
       long metadataSizeRequired, long dataSizeRequired)
+      throws SCMException {
+    // Delegate to the StorageType-aware version with null storageType
+    return chooseDatanodesInternal(usedNodes, excludedNodes, favoredNodes,
+        nodesRequired, metadataSizeRequired, dataSizeRequired, null);
+  }
+
+  @Override
+  protected List<DatanodeDetails> chooseDatanodesInternal(
+      List<DatanodeDetails> usedNodes,
+      List<DatanodeDetails> excludedNodes,
+      List<DatanodeDetails> favoredNodes, int nodesRequired,
+      long metadataSizeRequired, long dataSizeRequired,
+      StorageType storageType)
       throws SCMException {
     Map<String, Long> mapSizeRequired = new HashMap<>();
     mapSizeRequired.put(META_DATA_SIZE_REQUIRED, metadataSizeRequired);

@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.StorageContainerDatanodeProtocolProtos.CommandQueueReportProto;
 import org.apache.hadoop.hdds.protocol.proto.StorageContainerDatanodeProtocolProtos.LayoutVersionProto;
@@ -348,6 +349,23 @@ public class DatanodeInfo extends DatanodeDetails {
     try {
       lock.readLock().lock();
       return commandCounts.getOrDefault(cmd, -1);
+    } finally {
+      lock.readLock().unlock();
+    }
+  }
+
+  /**
+   * Check if this datanode has any volume with the given storage type.
+   *
+   * @param storageType the required StorageType
+   * @return true if at least one volume matches the given type
+   */
+  public boolean hasStorageType(StorageType storageType) {
+    try {
+      lock.readLock().lock();
+      return storageReports.stream()
+          .anyMatch(report -> report.getStorageType().name()
+              .equals(storageType.name()));
     } finally {
       lock.readLock().unlock();
     }

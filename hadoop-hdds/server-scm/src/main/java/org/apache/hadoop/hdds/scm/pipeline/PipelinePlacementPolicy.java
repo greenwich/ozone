@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.client.RatisReplicationConfig;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
@@ -252,6 +253,17 @@ public final class PipelinePlacementPolicy extends SCMCommonPlacementPolicy {
           List<DatanodeDetails> usedNodes, List<DatanodeDetails> excludedNodes,
           List<DatanodeDetails> favoredNodes,
           int nodesRequired, long metadataSizeRequired, long dataSizeRequired)
+      throws SCMException {
+    return chooseDatanodesInternal(usedNodes, excludedNodes, favoredNodes,
+        nodesRequired, metadataSizeRequired, dataSizeRequired, null);
+  }
+
+  @Override
+  protected List<DatanodeDetails> chooseDatanodesInternal(
+          List<DatanodeDetails> usedNodes, List<DatanodeDetails> excludedNodes,
+          List<DatanodeDetails> favoredNodes,
+          int nodesRequired, long metadataSizeRequired, long dataSizeRequired,
+          StorageType storageType)
       throws SCMException {
     // Get a list of viable nodes based on criteria
     // and make sure excludedNodes are excluded from list.
