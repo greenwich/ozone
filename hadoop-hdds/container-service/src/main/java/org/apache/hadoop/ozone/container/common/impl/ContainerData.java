@@ -43,6 +43,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.ContainerDataProto;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.ContainerType;
@@ -105,6 +106,8 @@ public abstract class ContainerData {
 
   private int replicaIndex;
 
+  private StorageType storageType;
+
   /** Timestamp of last data scan (milliseconds since Unix Epoch).
    * {@code null} if not yet scanned (or timestamp not recorded,
    * eg. in prior versions). */
@@ -162,6 +165,7 @@ public abstract class ContainerData {
         source.getLayoutVersion(), source.getMaxSize(),
         source.getOriginPipelineId(), source.getOriginNodeId());
     replicaIndex = source.getReplicaIndex();
+    storageType = source.getStorageType();
   }
 
   /**
@@ -209,6 +213,14 @@ public abstract class ContainerData {
 
   public void setReplicaIndex(int replicaIndex) {
     this.replicaIndex = replicaIndex;
+  }
+
+  public void setStorageType(StorageType type) {
+    storageType = type;
+  }
+
+  public StorageType getStorageType() {
+    return storageType;
   }
 
   /**

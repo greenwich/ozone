@@ -150,7 +150,7 @@ public final class RegisterEndpointTask implements
           this.stateContext.configureHeartbeatFrequency();
         }
       }
-    } catch (IOException ex) {
+    } catch (IOException | IllegalArgumentException ex) {
       rpcEndPoint.logIfNeeded(ex);
     } finally {
       rpcEndPoint.unlock();

@@ -31,6 +31,7 @@ import java.util.UUID;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.StorageUnit;
 import org.apache.hadoop.fs.FileSystemTestHelper;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdds.HddsConfigKeys;
 import org.apache.hadoop.hdds.conf.ConfigurationSource;
@@ -86,6 +87,39 @@ public class TestContainerDataYaml {
         VersionedDatanodeFeatures.SchemaV2.chooseSchemaVersion());
     keyValueContainerData.setReplicaIndex(replicaIndex);
     keyValueContainerData.setDataChecksum(12345);
+
+    File containerFile = new File(testRoot, containerPath);
+
+    // Create .container file with ContainerData
+    ContainerDataYaml.createContainerFile(keyValueContainerData, containerFile);
+
+    //Check .container file exists or not.
+    assertTrue(containerFile.exists());
+
+    return containerFile;
+  }
+
+  private File createContainerFile(long containerID, int replicaIndex,
+      StorageType storageType) throws IOException {
+    assertTrue(new File(testRoot).mkdirs());
+
+    String containerPath = containerID + ".container";
+
+    KeyValueContainerData keyValueContainerData = new KeyValueContainerData(
+        containerID, layoutVersion, MAXSIZE,
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString());
+    keyValueContainerData.setContainerDBType(CONTAINER_DB_TYPE);
+    keyValueContainerData.setMetadataPath(testRoot);
+    keyValueContainerData.setChunksPath(testRoot);
+    keyValueContainerData.updateDataScanTime(SCAN_TIME);
+    keyValueContainerData.setSchemaVersion(
+        VersionedDatanodeFeatures.SchemaV2.chooseSchemaVersion());
+    keyValueContainerData.setReplicaIndex(replicaIndex);
+    keyValueContainerData.setDataChecksum(12345);
+    if (storageType != null) {
+      keyValueContainerData.setStorageType(storageType);
+    }
 
     File containerFile = new File(testRoot, containerPath);
 
@@ -272,6 +306,48 @@ public class TestContainerDataYaml {
   /**
    * Test to verify {@link ContainerUtils#verifyContainerFileChecksum(ContainerData,ConfigurationSource)}.
    */
+  @ContainerLayoutTestInfo.ContainerTest
+  public void testCreateContainerFileWithStorageType(
+      ContainerLayoutVersion layout) throws IOException {
+    setLayoutVersion(layout);
+    long containerID = testContainerID++;
+
+    File containerFile = createContainerFile(containerID, 0, StorageType.SSD);
+
+    // Read from .container file, and verify storageType is persisted.
+    KeyValueContainerData kvData = (KeyValueContainerData) ContainerDataYaml
+        .readContainerFile(containerFile);
+    assertEquals(StorageType.SSD, kvData.getStorageType());
+
+    // Verify checksum is valid with storageType included.
+    ContainerUtils.verifyContainerFileChecksum(kvData, conf);
+
+    cleanup();
+  }
+
+  @ContainerLayoutTestInfo.ContainerTest
+  public void testCreateContainerFileWithoutStorageType(
+      ContainerLayoutVersion layout) throws IOException {
+    setLayoutVersion(layout);
+    long containerID = testContainerID++;
+
+    File containerFile = createContainerFile(containerID, 0, null);
+
+    final String content =
+        FileUtils.readFileToString(containerFile, Charset.defaultCharset());
+
+    assertThat(content)
+        .withFailMessage("storageType shouldn't be persisted if null")
+        .doesNotContain("storageType");
+
+    // Read from .container file, and verify storageType is null.
+    KeyValueContainerData kvData = (KeyValueContainerData) ContainerDataYaml
+        .readContainerFile(containerFile);
+    assertEquals(null, kvData.getStorageType());
+
+    cleanup();
+  }
+
   @ContainerLayoutTestInfo.ContainerTest
   public void testChecksumInContainerFileWithReplicaIndex(
       ContainerLayoutVersion layout) throws IOException {

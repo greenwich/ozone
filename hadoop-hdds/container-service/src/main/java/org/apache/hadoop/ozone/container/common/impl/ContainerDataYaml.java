@@ -17,6 +17,7 @@
 
 package org.apache.hadoop.ozone.container.common.impl;
 
+import static org.apache.hadoop.ozone.OzoneConsts.CONTAINER_STORAGE_TYPE;
 import static org.apache.hadoop.ozone.OzoneConsts.REPLICA_INDEX;
 import static org.apache.hadoop.ozone.container.keyvalue.KeyValueContainerData.KEYVALUE_YAML_TAG;
 
@@ -31,6 +32,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos.ContainerType;
 import org.apache.hadoop.hdds.scm.container.common.helpers.StorageContainerException;
@@ -72,7 +75,9 @@ public final class ContainerDataYaml {
    */
   public static void createContainerFile(ContainerData containerData, File containerFile) throws IOException {
     // Create Yaml for given container type
-    final Yaml yaml = getYamlForContainerType(containerData.getContainerType(), containerData.getReplicaIndex() > 0);
+    StorageType storageType = containerData.getStorageType();
+    final Yaml yaml = getYamlForContainerType(containerData.getContainerType(),
+        containerData.getReplicaIndex() > 0, storageType);
     // Compute Checksum and update ContainerData
     containerData.computeAndSetContainerFileChecksum(yaml);
 
@@ -151,11 +156,27 @@ public final class ContainerDataYaml {
    *
    * @param containerType    type of container
    * @param withReplicaIndex in the container yaml
-   * @return Yamal representation of container properties
+   * @return Yaml representation of container properties
    * @throws StorageContainerException if the type is unrecognized
    */
   public static Yaml getYamlForContainerType(ContainerType containerType,
       boolean withReplicaIndex)
+      throws StorageContainerException {
+    return getYamlForContainerType(containerType, withReplicaIndex, null);
+  }
+
+  /**
+   * Given a ContainerType this method returns a Yaml representation of
+   * the container properties.
+   *
+   * @param containerType    type of container
+   * @param withReplicaIndex in the container yaml
+   * @param storageType      storage type of the container, may be null
+   * @return Yaml representation of container properties
+   * @throws StorageContainerException if the type is unrecognized
+   */
+  public static Yaml getYamlForContainerType(ContainerType containerType,
+      boolean withReplicaIndex, StorageType storageType)
       throws StorageContainerException {
     PropertyUtils propertyUtils = new PropertyUtils();
     propertyUtils.setBeanAccess(BeanAccess.FIELD);
@@ -164,9 +185,14 @@ public final class ContainerDataYaml {
     if (containerType == ContainerType.KeyValueContainer) {
       List<String> yamlFields =
           KeyValueContainerData.getYamlFields();
-      if (withReplicaIndex) {
+      if (withReplicaIndex || storageType != null) {
         yamlFields = new ArrayList<>(yamlFields);
-        yamlFields.add(REPLICA_INDEX);
+        if (withReplicaIndex) {
+          yamlFields.add(REPLICA_INDEX);
+        }
+        if (storageType != null) {
+          yamlFields.add(CONTAINER_STORAGE_TYPE);
+        }
       }
       Representer representer = new ContainerDataRepresenter(yamlFields);
       representer.setPropertyUtils(propertyUtils);
@@ -283,6 +309,12 @@ public final class ContainerDataYaml {
         if (replicaIndex != null) {
           kvData.setReplicaIndex(
               ((Long) replicaIndex).intValue());
+        }
+        String storageTypeString = (String) nodes.get(CONTAINER_STORAGE_TYPE);
+        StorageType storageType = StringUtils.isEmpty(storageTypeString)
+            ? null : StorageType.valueOf(storageTypeString);
+        if (storageType != null) {
+          kvData.setStorageType(storageType);
         }
         return kvData;
       }

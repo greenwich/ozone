@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 
 import java.util.UUID;
 import org.apache.hadoop.conf.StorageUnit;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.hdds.protocol.datanode.proto.ContainerProtos;
 import org.apache.hadoop.ozone.container.common.impl.ContainerData;
@@ -88,6 +89,7 @@ public class TestKeyValueContainerData {
     kvData.setChunksPath(path);
     kvData.setMetadataPath(path);
     kvData.setReplicaIndex(4);
+    kvData.setStorageType(StorageType.SSD);
     statistics.updateRead(10);
     statistics.incrementBlockCount();
     kvData.updateWriteStats(10, true);
@@ -111,8 +113,11 @@ public class TestKeyValueContainerData {
         kvData.getSchemaVersion());
     assertEquals(expectedDataHash, kvData.getDataChecksum());
 
+    assertEquals(StorageType.SSD, kvData.getStorageType());
+
     KeyValueContainerData newKvData = new KeyValueContainerData(kvData);
     assertEquals(kvData.getReplicaIndex(), newKvData.getReplicaIndex());
+    assertEquals(kvData.getStorageType(), newKvData.getStorageType());
     assertEquals(0, newKvData.getNumPendingDeletionBlocks());
     assertEquals(0, newKvData.getDeleteTransactionId());
     assertEquals(kvData.getSchemaVersion(), newKvData.getSchemaVersion());

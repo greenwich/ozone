@@ -250,7 +250,8 @@ public final class ContainerUtils {
       Yaml yaml = ContainerDataYaml.getYamlForContainerType(
           containerData.getContainerType(),
           containerData instanceof KeyValueContainerData &&
-              ((KeyValueContainerData)containerData).getReplicaIndex() > 0);
+              ((KeyValueContainerData)containerData).getReplicaIndex() > 0,
+          containerData.getStorageType());
       containerData.computeAndSetContainerFileChecksum(yaml);
       String computedChecksum = containerData.getContainerFileChecksum();
 

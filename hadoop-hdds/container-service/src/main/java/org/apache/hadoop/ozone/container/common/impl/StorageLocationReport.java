@@ -114,12 +114,11 @@ public final class StorageLocationReport implements StorageLocationReportMXBean 
     return storageType;
   }
 
-  private StorageTypeProto getStorageTypeProto() throws IOException {
+  private StorageTypeProto getStorageTypeProto() {
     return getStorageTypeProto(getStorageType());
   }
 
-  public static StorageTypeProto getStorageTypeProto(StorageType type)
-      throws IOException {
+  public static StorageTypeProto getStorageTypeProto(StorageType type) {
     StorageTypeProto storageTypeProto;
     switch (type) {
     case SSD:
@@ -138,7 +137,7 @@ public final class StorageLocationReport implements StorageLocationReportMXBean 
       storageTypeProto = StorageTypeProto.RAM_DISK;
       break;
     default:
-      throw new IOException("Illegal Storage Type specified");
+      throw new IllegalArgumentException("Illegal Storage Type specified: " + type);
     }
     return storageTypeProto;
   }
@@ -155,8 +154,7 @@ public final class StorageLocationReport implements StorageLocationReportMXBean 
     return fsAvailable;
   }
 
-  private static StorageType getStorageType(StorageTypeProto proto) throws
-      IOException {
+  public static StorageType getStorageType(StorageTypeProto proto) {
     StorageType storageType;
     switch (proto) {
     case SSD:
@@ -175,7 +173,7 @@ public final class StorageLocationReport implements StorageLocationReportMXBean 
       storageType = StorageType.RAM_DISK;
       break;
     default:
-      throw new IOException("Illegal Storage Type specified");
+      throw new IllegalArgumentException("Illegal Storage Type specified: " + proto);
     }
     return storageType;
   }
