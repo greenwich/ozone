@@ -45,6 +45,7 @@ import org.apache.hadoop.hdds.scm.net.NetConstants;
 import org.apache.hadoop.hdds.scm.pipeline.Pipeline;
 import org.apache.hadoop.hdds.scm.pipeline.PipelineID;
 import org.apache.hadoop.hdds.scm.protocol.ScmBlockLocationProtocol;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.ozone.common.BlockGroup;
 import org.apache.hadoop.ozone.common.DeleteBlockGroupResult;
 import org.apache.hadoop.ozone.common.DeletedBlock;
@@ -119,7 +120,8 @@ public class ScmBlockLocationTestingClient implements ScmBlockLocationProtocol {
   @Override
   public List<AllocatedBlock> allocateBlock(long size, int num,
       ReplicationConfig config,
-      String owner, ExcludeList excludeList, String clientMachine)
+      String owner, ExcludeList excludeList, String clientMachine,
+      StoragePolicy storagePolicy, boolean allowFallbackStoragePolicy)
       throws IOException {
     DatanodeDetails datanodeDetails = randomDatanodeDetails();
     Pipeline pipeline = createPipeline(datanodeDetails);
