@@ -33,8 +33,8 @@ import static org.apache.hadoop.hdds.scm.ScmConfigKeys.OZONE_SCM_CONTAINER_LOCK_
 import static org.apache.hadoop.hdds.scm.ScmConfigKeys.OZONE_SCM_CONTAINER_LOCK_STRIPE_SIZE_DEFAULT;
 
 import com.google.common.util.concurrent.Striped;
-import java.io.IOException;
 import jakarta.annotation.Nonnull;
+import java.io.IOException;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;

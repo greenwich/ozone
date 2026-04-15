@@ -18,7 +18,6 @@
 package org.apache.hadoop.hdds.client;
 
 import jakarta.annotation.Nonnull;
-
 import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
 

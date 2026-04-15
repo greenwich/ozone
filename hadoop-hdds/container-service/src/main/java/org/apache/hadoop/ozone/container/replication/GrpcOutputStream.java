@@ -188,6 +188,6 @@ abstract class GrpcOutputStream<T> extends OutputStream {
   }
 
   protected abstract void sendPart(boolean eof, int length, ByteString data,
-      StorageType storageType);
+      StorageType type);
 
 }

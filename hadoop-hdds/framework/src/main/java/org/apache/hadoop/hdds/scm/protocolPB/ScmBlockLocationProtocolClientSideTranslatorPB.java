@@ -22,9 +22,9 @@ import static org.apache.hadoop.hdds.protocol.proto.ScmBlockLocationProtocolProt
 import com.google.common.base.Preconditions;
 import com.google.protobuf.RpcController;
 import com.google.protobuf.ServiceException;
+import jakarta.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

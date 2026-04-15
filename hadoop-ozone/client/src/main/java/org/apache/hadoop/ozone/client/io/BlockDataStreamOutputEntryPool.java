@@ -17,6 +17,8 @@
 
 package org.apache.hadoop.ozone.client.io;
 
+import static org.apache.hadoop.ozone.client.io.BlockOutputStreamEntryPool.getStorageType;
+
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.time.Clock;
@@ -27,8 +29,6 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Objects;
-import static org.apache.hadoop.ozone.client.io.BlockOutputStreamEntryPool.getStorageType;
-
 import org.apache.hadoop.hdds.client.ContainerBlockID;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.scm.OzoneClientConfig;

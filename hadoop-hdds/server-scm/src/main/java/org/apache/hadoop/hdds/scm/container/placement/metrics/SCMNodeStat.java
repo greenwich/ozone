@@ -19,10 +19,9 @@ package org.apache.hadoop.hdds.scm.container.placement.metrics;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import org.apache.hadoop.fs.StorageType;
-
 import java.util.EnumMap;
 import java.util.Map;
+import org.apache.hadoop.fs.StorageType;
 
 /**
  * This class represents the SCM node stat.

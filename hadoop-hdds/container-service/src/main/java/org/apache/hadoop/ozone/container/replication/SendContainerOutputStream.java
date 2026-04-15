@@ -51,7 +51,7 @@ class SendContainerOutputStream extends GrpcOutputStream<SendContainerRequest> {
 
   @Override
   protected void sendPart(boolean eof, int length, ByteString data,
-      StorageType storageType) {
+      StorageType type) {
     SendContainerRequest.Builder requestBuilder = SendContainerRequest.newBuilder()
         .setContainerID(getContainerId())
         .setData(data)

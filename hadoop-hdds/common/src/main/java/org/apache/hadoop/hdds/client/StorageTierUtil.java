@@ -18,12 +18,11 @@
 package org.apache.hadoop.hdds.client;
 
 import com.google.common.collect.Sets;
-import org.apache.hadoop.fs.StorageType;
-import org.apache.hadoop.hdds.scm.exceptions.SCMException;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import org.apache.hadoop.fs.StorageType;
+import org.apache.hadoop.hdds.scm.exceptions.SCMException;
 
 /**
  * Utility class for managing StorageTier operations.

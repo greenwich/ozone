@@ -253,10 +253,9 @@ class PipelineStateMap {
    */
   List<Pipeline> getPipelines(ReplicationConfig replicationConfig,
       PipelineState state, StorageTier storageTier) {
-    Preconditions
-        .checkNotNull(replicationConfig, "ReplicationConfig cannot be null");
-    Preconditions.checkNotNull(state, "Pipeline state cannot be null");
-    Preconditions.checkNotNull(storageTier, "Pipeline storageTier cannot be null");
+    Objects.requireNonNull(replicationConfig, "ReplicationConfig cannot be null");
+    Objects.requireNonNull(state, "Pipeline state cannot be null");
+    Objects.requireNonNull(storageTier, "Pipeline storageTier cannot be null");
     List<Pipeline> pipelines = getPipelines(replicationConfig, state);
     return pipelines.stream()
         .filter(pipeline -> pipeline.getSupportedStorageTier() != null
@@ -328,15 +327,11 @@ class PipelineStateMap {
   List<Pipeline> getPipelines(ReplicationConfig replicationConfig,
       PipelineState state, Collection<DatanodeDetails> excludeDns,
       Collection<PipelineID> excludePipelines, StorageTier storageTier) {
-    Preconditions
-        .checkNotNull(replicationConfig, "ReplicationConfig cannot be null");
-    Preconditions.checkNotNull(state, "Pipeline state cannot be null");
-    Preconditions
-        .checkNotNull(excludeDns, "Datanode exclude list cannot be null");
-    Preconditions
-        .checkNotNull(excludePipelines, "Pipeline exclude list cannot be null");
-    Preconditions
-        .checkNotNull(storageTier, "Pipeline storageTier cannot be null");
+    Objects.requireNonNull(replicationConfig, "ReplicationConfig cannot be null");
+    Objects.requireNonNull(state, "Pipeline state cannot be null");
+    Objects.requireNonNull(excludeDns, "Datanode exclude list cannot be null");
+    Objects.requireNonNull(excludePipelines, "Pipeline exclude list cannot be null");
+    Objects.requireNonNull(storageTier, "Pipeline storageTier cannot be null");
 
     List<Pipeline> pipelines = null;
     if (state == PipelineState.OPEN) {

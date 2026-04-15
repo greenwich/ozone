@@ -19,10 +19,10 @@ package org.apache.hadoop.ozone.protocol.commands;
 
 import static java.util.Collections.emptyList;
 
+import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import jakarta.annotation.Nullable;
 import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.client.StorageTypeUtils;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;

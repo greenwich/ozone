@@ -53,10 +53,10 @@ import org.apache.hadoop.ozone.client.io.OzoneInputStream;
 import org.apache.hadoop.ozone.client.io.OzoneOutputStream;
 import org.apache.hadoop.ozone.client.protocol.ClientProtocol;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
-import org.apache.hadoop.ozone.om.helpers.OmBucketArgs;
 import org.apache.hadoop.ozone.om.helpers.BasicOmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.ErrorInfo;
+import org.apache.hadoop.ozone.om.helpers.OmBucketArgs;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.OmMultipartInfo;
 import org.apache.hadoop.ozone.om.helpers.OmMultipartUploadCompleteInfo;
@@ -573,11 +573,11 @@ public class OzoneBucket extends WithMetadata {
   public OzoneOutputStream createKey(String key, long size,
       ReplicationConfig replicationConfig,
       Map<String, String> keyMetadata,
-      Map<String, String> tags, StoragePolicy storagePolicy)
+      Map<String, String> tags, StoragePolicy policy)
       throws IOException {
     return proxy
         .createKey(volumeName, name, key, size, replicationConfig, keyMetadata, tags,
-            storagePolicy);
+            policy);
   }
 
   /**
@@ -615,10 +615,10 @@ public class OzoneBucket extends WithMetadata {
    * @throws IOException
    */
   public OzoneOutputStream rewriteKey(String keyName, long size, long existingKeyGeneration,
-      ReplicationConfig replicationConfig, Map<String, String> metadata, StoragePolicy storagePolicy)
-      throws IOException {
-    return proxy.rewriteKey(volumeName, name, keyName, size, existingKeyGeneration,
-        replicationConfig, metadata, storagePolicy);
+      ReplicationConfig replicationConfig, Map<String, String> metadata,
+      StoragePolicy policy) throws IOException {
+    return proxy.rewriteKey(volumeName, name, keyName, size,
+        existingKeyGeneration, replicationConfig, metadata, policy);
   }
 
   /**
@@ -684,9 +684,9 @@ public class OzoneBucket extends WithMetadata {
    * @throws IOException
    */
   public OzoneDataStreamOutput createStreamKey(String key, long size,
-      StoragePolicy storagePolicy) throws IOException {
+      StoragePolicy policy) throws IOException {
     return createStreamKey(key, size, defaultReplication,
-        Collections.emptyMap(), storagePolicy);
+        Collections.emptyMap(), policy);
   }
 
   /**
@@ -702,12 +702,12 @@ public class OzoneBucket extends WithMetadata {
    */
   public OzoneDataStreamOutput createStreamKey(String key, long size,
       ReplicationConfig replicationConfig, Map<String, String> keyMetadata,
-      StoragePolicy storagePolicy) throws IOException {
+      StoragePolicy policy) throws IOException {
     if (replicationConfig == null) {
       replicationConfig = defaultReplication;
     }
     return proxy.createStreamKey(volumeName, name, key, size,
-        replicationConfig, keyMetadata, storagePolicy);
+        replicationConfig, keyMetadata, policy);
   }
 
   /**
@@ -1040,9 +1040,10 @@ public class OzoneBucket extends WithMetadata {
    */
   public OmMultipartInfo initiateMultipartUpload(String keyName,
       ReplicationConfig config, Map<String, String> metadata,
-      Map<String, String> tags, StoragePolicy storagePolicy)
+      Map<String, String> tags, StoragePolicy policy)
       throws IOException {
-    return proxy.initiateMultipartUpload(volumeName, name, keyName, config, metadata, tags, storagePolicy);
+    return proxy.initiateMultipartUpload(volumeName, name, keyName,
+        config, metadata, tags, policy);
   }
 
   /**
@@ -1224,10 +1225,10 @@ public class OzoneBucket extends WithMetadata {
    */
   public OzoneOutputStream createFile(String keyName, long size,
       ReplicationConfig replicationConfig, boolean overWrite,
-      boolean recursive, StoragePolicy storagePolicy) throws IOException {
+      boolean recursive, StoragePolicy policy) throws IOException {
     return proxy
         .createFile(volumeName, name, keyName, size, replicationConfig,
-            overWrite, recursive, storagePolicy);
+            overWrite, recursive, policy);
   }
 
   public OzoneDataStreamOutput createStreamFile(String keyName, long size,
@@ -1242,9 +1243,9 @@ public class OzoneBucket extends WithMetadata {
    */
   public OzoneDataStreamOutput createStreamFile(String keyName, long size,
       ReplicationConfig replicationConfig, boolean overWrite,
-      boolean recursive, StoragePolicy storagePolicy) throws IOException {
+      boolean recursive, StoragePolicy policy) throws IOException {
     return proxy.createStreamFile(volumeName, name, keyName, size,
-        replicationConfig, overWrite, recursive, storagePolicy);
+        replicationConfig, overWrite, recursive, policy);
   }
 
   /**
@@ -1444,8 +1445,8 @@ public class OzoneBucket extends WithMetadata {
       return this;
     }
 
-    public Builder setStoragePolicy(StoragePolicy storagePolicy) {
-      this.storagePolicy = storagePolicy;
+    public Builder setStoragePolicy(StoragePolicy policy) {
+      this.storagePolicy = policy;
       return this;
     }
 

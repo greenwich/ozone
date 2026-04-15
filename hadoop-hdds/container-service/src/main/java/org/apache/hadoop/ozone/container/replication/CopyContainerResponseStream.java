@@ -43,7 +43,7 @@ class CopyContainerResponseStream
 
   @Override
   protected void sendPart(boolean eof, int length, ByteString data,
-      StorageType storageType) {
+      StorageType type) {
     CopyContainerResponseProto.Builder response =
         CopyContainerResponseProto.newBuilder()
             .setContainerID(getContainerId())

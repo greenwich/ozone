@@ -20,7 +20,6 @@ package org.apache.hadoop.ozone.container.common.volume;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.ozone.container.common.interfaces.VolumeChoosingPolicy;
 
