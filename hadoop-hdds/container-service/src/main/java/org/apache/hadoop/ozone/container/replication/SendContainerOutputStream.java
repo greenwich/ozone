@@ -62,8 +62,8 @@ class SendContainerOutputStream extends GrpcOutputStream<SendContainerRequest> {
     if (getWrittenBytes() == 0 && size != null) {
       requestBuilder.setSize(size);
     }
-    if (storageType != null) {
-      requestBuilder.setStorageTypeID(StorageTypeUtils.getID(storageType));
+    if (getStorageType() != null) {
+      requestBuilder.setStorageTypeID(StorageTypeUtils.getID(getStorageType()));
     }
     getStreamObserver().onNext(requestBuilder.build());
   }

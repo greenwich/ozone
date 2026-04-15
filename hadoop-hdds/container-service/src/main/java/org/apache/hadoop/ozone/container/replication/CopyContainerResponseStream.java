@@ -51,8 +51,8 @@ class CopyContainerResponseStream
             .setEof(eof)
             .setReadOffset(getWrittenBytes())
             .setLen(length);
-    if (storageType != null) {
-      response.setStorageTypeID(StorageTypeUtils.getID(storageType));
+    if (getStorageType() != null) {
+      response.setStorageTypeID(StorageTypeUtils.getID(getStorageType()));
     }
     getStreamObserver().onNext(response.build());
   }
