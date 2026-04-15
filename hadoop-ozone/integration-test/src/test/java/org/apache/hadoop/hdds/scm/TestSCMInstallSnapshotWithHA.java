@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hdds.ExitManager;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.client.RatisReplicationConfig;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos.ReplicationFactor;
@@ -277,7 +278,8 @@ public class TestSCMInstallSnapshotWithHA {
       containers.add(scm.getContainerManager()
           .allocateContainer(
               RatisReplicationConfig.getInstance(ReplicationFactor.THREE),
-              TestSCMInstallSnapshotWithHA.class.getName()));
+              TestSCMInstallSnapshotWithHA.class.getName(),
+              StorageTier.getDefaultTier()));
       Thread.sleep(100);
       logIndex = stateMachine.getLastAppliedTermIndex().getIndex();
     }

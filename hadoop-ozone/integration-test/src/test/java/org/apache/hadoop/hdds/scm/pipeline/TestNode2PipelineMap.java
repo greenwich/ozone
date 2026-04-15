@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.client.RatisReplicationConfig;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
@@ -55,7 +56,8 @@ public abstract class TestNode2PipelineMap implements NonHATests.TestCase {
     pipelineManager = scm.getPipelineManager();
     ContainerInfo containerInfo = containerManager.allocateContainer(
         RatisReplicationConfig.getInstance(
-            ReplicationFactor.THREE), "testOwner");
+            ReplicationFactor.THREE), "testOwner",
+        StorageTier.getDefaultTier());
     ratisContainer = new ContainerWithPipeline(containerInfo,
         pipelineManager.getPipeline(containerInfo.getPipelineID()));
     pipelineManager = scm.getPipelineManager();

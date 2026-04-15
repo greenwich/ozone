@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import org.apache.hadoop.hdds.client.StorageTier;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -108,7 +109,7 @@ public abstract class TestSCMMXBean implements NonHATests.TestCase {
       containerInfoList.add(
           scmContainerManager.allocateContainer(
               StandaloneReplicationConfig.getInstance(ReplicationFactor.ONE),
-              UUID.randomUUID().toString()));
+              UUID.randomUUID().toString(), StorageTier.getDefaultTier()));
     }
     long containerID;
     for (int i = 0; i < 10; i++) {

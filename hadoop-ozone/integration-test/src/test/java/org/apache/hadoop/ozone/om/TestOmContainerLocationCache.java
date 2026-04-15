@@ -55,6 +55,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.hdds.HddsConfigKeys;
+import org.apache.hadoop.hdds.client.StoragePolicy;
 import org.apache.hadoop.hdds.client.ContainerBlockID;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
 import org.apache.hadoop.hdds.client.RatisReplicationConfig;
@@ -719,7 +720,9 @@ public class TestOmContainerLocationCache {
             any(ReplicationConfig.class),
             anyString(),
             any(ExcludeList.class),
-            anyString()))
+            anyString(),
+            any(StoragePolicy.class),
+            anyBoolean()))
         .thenReturn(Collections.singletonList(block));
   }
 
@@ -735,7 +738,9 @@ public class TestOmContainerLocationCache {
             any(ECReplicationConfig.class),
             anyString(),
             any(ExcludeList.class),
-            anyString()))
+            anyString(),
+            any(StoragePolicy.class),
+            anyBoolean()))
         .thenReturn(Collections.singletonList(block));
   }
 
