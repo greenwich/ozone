@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.Optional;
 import org.apache.hadoop.hdds.client.RatisReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.hdds.scm.XceiverClientGrpc;
 import org.apache.hadoop.hdds.scm.container.ContainerID;
@@ -124,7 +125,8 @@ public class TestReconAsPassiveScm {
     ContainerManager reconContainerManager = reconScm.getContainerManager();
     ContainerInfo containerInfo =
         scmContainerManager
-            .allocateContainer(RatisReplicationConfig.getInstance(ONE), "test");
+            .allocateContainer(RatisReplicationConfig.getInstance(ONE), "test",
+                StorageTier.getDefaultTier());
     long containerID = containerInfo.getContainerID();
     Pipeline pipeline =
         scmPipelineManager.getPipeline(containerInfo.getPipelineID());
@@ -164,7 +166,8 @@ public class TestReconAsPassiveScm {
     // Create container in SCM.
     ContainerInfo containerInfo =
         scmContainerManager
-            .allocateContainer(RatisReplicationConfig.getInstance(ONE), "test");
+            .allocateContainer(RatisReplicationConfig.getInstance(ONE), "test",
+                StorageTier.getDefaultTier());
     long containerID = containerInfo.getContainerID();
     PipelineManager scmPipelineManager = scm.getPipelineManager();
     Pipeline pipeline =
