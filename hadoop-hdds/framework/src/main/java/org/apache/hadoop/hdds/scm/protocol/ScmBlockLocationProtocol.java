@@ -90,6 +90,7 @@ public interface ScmBlockLocationProtocol extends Closeable {
    * @return allocated block accessing info (key, pipeline).
    * @throws IOException
    */
+  @SuppressWarnings("checkstyle:ParameterNumber")
   List<AllocatedBlock> allocateBlock(long size, int numBlocks,
       ReplicationConfig replicationConfig, String owner,
       ExcludeList excludeList, String clientMachine,

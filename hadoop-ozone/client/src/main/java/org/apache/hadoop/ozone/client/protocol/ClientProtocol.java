@@ -477,6 +477,7 @@ public interface ClientProtocol {
    * @param storagePolicy The StoragePolicy of the key.
    * @return {@link OzoneOutputStream}
    */
+  @SuppressWarnings("checkstyle:ParameterNumber")
   default OzoneOutputStream createKey(String volumeName, String bucketName,
       String keyName, long size, ReplicationConfig replicationConfig,
       Map<String, String> metadata, Map<String, String> tags,
