@@ -1194,16 +1194,6 @@ public class ObjectEndpoint extends ObjectOperationHandler {
   private OzoneOutputStream openKeyForPut(String volumeName, String bucketName, String keyPath, long length,
       ReplicationConfig replicationConfig, Map<String, String> customMetadata,
       Map<String, String> tags,
-      S3ConditionalRequest.WriteConditions writeConditions)
-      throws IOException {
-    return openKeyForPut(volumeName, bucketName, keyPath, length,
-        replicationConfig, customMetadata, tags, writeConditions, null);
-  }
-
-  @SuppressWarnings("checkstyle:ParameterNumber")
-  private OzoneOutputStream openKeyForPut(String volumeName, String bucketName, String keyPath, long length,
-      ReplicationConfig replicationConfig, Map<String, String> customMetadata,
-      Map<String, String> tags,
       S3ConditionalRequest.WriteConditions writeConditions,
       StoragePolicy storagePolicy)
       throws IOException {

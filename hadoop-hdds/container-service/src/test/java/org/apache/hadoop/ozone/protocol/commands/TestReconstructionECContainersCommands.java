@@ -86,9 +86,12 @@ public class TestReconstructionECContainersCommands {
     List<DatanodeDetails> targetDnsFromProto = proto.getTargetsList().stream()
         .map(a -> DatanodeDetails.getFromProtoBuf(a))
         .collect(Collectors.toList());
+    List<DatanodeDetails> targetDns = targets.stream()
+        .map(ReconstructECContainersCommand.ECReconstructionTarget::getDatanodeDetails)
+        .collect(Collectors.toList());
     assertEquals(1L, proto.getContainerID());
     assertEquals(sources, srcDnsFromProto);
-    assertEquals(targets, targetDnsFromProto);
+    assertEquals(targetDns, targetDnsFromProto);
     assertEquals(missingContainerIndexes, proto.getMissingContainerIndexes());
     assertEquals(ecReplicationConfig,
         new ECReplicationConfig(proto.getEcReplicationConfig()));
