@@ -234,9 +234,29 @@ public abstract class SCMCommonPlacementPolicy implements
   object of DatanodeDetails(with Topology Information) while trying to get the
   random node from NetworkTopology should fix this. Check HDDS-7015
  */
-    return chooseDatanodesInternal(validateDatanodes(usedNodes),
-            validateDatanodes(excludedNodes), favoredNodes, nodesRequired,
-            metadataSizeRequired, dataSizeRequired, storageType);
+    List<DatanodeDetails> validatedUsed = validateDatanodes(usedNodes);
+    List<DatanodeDetails> validatedExcluded = validateDatanodes(excludedNodes);
+
+    // If a storageType filter is requested, augment the excluded list
+    // with nodes that lack the required storage type. This ensures the
+    // subclass chooseDatanodesInternal (which may not know about
+    // storageType) only considers nodes with the right volume type.
+    if (storageType != null) {
+      List<DatanodeDetails> healthyNodes =
+          nodeManager.getNodes(NodeStatus.inServiceHealthy());
+      List<DatanodeDetails> nodesWithoutType = healthyNodes.stream()
+          .filter(dn -> !hasStorageType(dn, storageType))
+          .collect(Collectors.toList());
+      if (!nodesWithoutType.isEmpty()) {
+        List<DatanodeDetails> augmentedExcluded = new ArrayList<>(validatedExcluded);
+        augmentedExcluded.addAll(nodesWithoutType);
+        validatedExcluded = augmentedExcluded;
+      }
+    }
+
+    return chooseDatanodesInternal(validatedUsed,
+            validatedExcluded, favoredNodes, nodesRequired,
+            metadataSizeRequired, dataSizeRequired);
   }
 
   /**

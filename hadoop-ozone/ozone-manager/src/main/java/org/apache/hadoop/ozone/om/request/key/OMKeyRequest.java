@@ -190,9 +190,11 @@ public abstract class OMKeyRequest extends OMClientRequest {
     if (keyArgs.hasStoragePolicy()) {
       return OzoneStoragePolicy.fromProto(keyArgs.getStoragePolicy());
     }
-    StoragePolicy bucketPolicy = bucketInfo.getStoragePolicy();
-    if (bucketPolicy != null) {
-      return bucketPolicy;
+    if (bucketInfo != null) {
+      StoragePolicy bucketPolicy = bucketInfo.getStoragePolicy();
+      if (bucketPolicy != null) {
+        return bucketPolicy;
+      }
     }
     return OzoneStoragePolicy.getDefaultPolicy();
   }

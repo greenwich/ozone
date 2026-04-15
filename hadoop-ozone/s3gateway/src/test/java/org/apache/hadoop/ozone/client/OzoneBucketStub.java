@@ -506,6 +506,16 @@ public final class OzoneBucketStub extends OzoneBucket {
   }
 
   @Override
+  public OmMultipartInfo initiateMultipartUpload(String keyName,
+      ReplicationConfig config, Map<String, String> metadata,
+      Map<String, String> tags,
+      org.apache.hadoop.hdds.client.StoragePolicy policy)
+      throws IOException {
+    // Delegate to the base implementation, ignoring storagePolicy in test stub
+    return initiateMultipartUpload(keyName, config, metadata, tags);
+  }
+
+  @Override
   public OzoneOutputStream createMultipartKey(String key, long size,
                                               int partNumber, String uploadID)
       throws IOException {

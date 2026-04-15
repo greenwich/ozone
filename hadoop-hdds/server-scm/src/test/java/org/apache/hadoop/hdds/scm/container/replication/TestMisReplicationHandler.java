@@ -204,7 +204,7 @@ public abstract class TestMisReplicationHandler {
     if (expectedNumberOfNodes > 0) {
       when(mockedPlacementPolicy.chooseDatanodes(
                       any(), any(), any(),
-                      eq(copy.size()), anyLong(), anyLong()))
+                      eq(copy.size()), anyLong(), anyLong(), any()))
               .thenAnswer(invocation -> {
                 List<DatanodeDetails> datanodeDetails =
                         invocation.getArgument(0);

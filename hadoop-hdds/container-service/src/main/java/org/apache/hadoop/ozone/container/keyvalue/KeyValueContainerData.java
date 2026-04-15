@@ -286,7 +286,9 @@ public class KeyValueContainerData extends ContainerData {
         .setBlockCommitSequenceId(getBlockCommitSequenceId())
         .setDeleteTransactionId(getDeleteTransactionId())
         .setDataChecksum(getDataChecksum());
-    ciBuilder.setContainerPath(getContainerPath());
+    if (getMetadataPath() != null) {
+      ciBuilder.setContainerPath(getContainerPath());
+    }
     if (getStorageType() != null) {
       ciBuilder.setStorageType(
           StorageTypeUtils.getStorageTypeProto(getStorageType()));

@@ -122,7 +122,7 @@ public class TestS3Utils {
 
   public static List<Arguments> invalidS3ReplicationConfigs() {
     List<Arguments> args = new ArrayList<>();
-    args.add(Arguments.of("GLACIER", null, RATIS3REPLICATIONCONFIG, RATIS1REPLICATIONCONFIG));
+    args.add(Arguments.of("INVALID_CLASS", null, RATIS3REPLICATIONCONFIG, RATIS1REPLICATIONCONFIG));
     args.add(Arguments.of(S3StorageType.STANDARD_IA.name(), "INVALID",
         RATIS3REPLICATIONCONFIG, RATIS1REPLICATIONCONFIG));
     return args;

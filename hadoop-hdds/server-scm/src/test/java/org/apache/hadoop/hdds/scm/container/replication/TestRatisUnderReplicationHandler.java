@@ -469,7 +469,7 @@ public class TestRatisUnderReplicationHandler {
   public void testCorrectUsedAndExcludedNodesPassed() throws IOException {
     PlacementPolicy mockPolicy = mock(PlacementPolicy.class);
     when(mockPolicy.chooseDatanodes(any(), any(), any(),
-        anyInt(), anyLong(), anyLong()))
+        anyInt(), anyLong(), anyLong(), any()))
         .thenReturn(Collections.singletonList(
             MockDatanodeDetails.randomDatanodeDetails()));
 
@@ -515,7 +515,7 @@ public class TestRatisUnderReplicationHandler {
 
     verify(mockPolicy, times(1)).chooseDatanodes(
         usedNodesCaptor.capture(), excludedNodesCaptor.capture(), any(),
-        anyInt(), anyLong(), anyLong());
+        anyInt(), anyLong(), anyLong(), any());
 
     List<DatanodeDetails> usedNodes = usedNodesCaptor.getValue();
     List<DatanodeDetails> excludedNodes = excludedNodesCaptor.getValue();

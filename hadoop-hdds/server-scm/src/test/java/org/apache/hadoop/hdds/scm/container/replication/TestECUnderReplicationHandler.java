@@ -54,6 +54,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.ImmutableList;
 import java.io.File;
@@ -1037,16 +1038,20 @@ public class TestECUnderReplicationHandler {
             Pair.of(IN_MAINTENANCE, 3), Pair.of(IN_SERVICE, 4),
             Pair.of(IN_SERVICE, 5));
 
+    Answer<List<DatanodeDetails>> maintenanceAnswer = invocationOnMock -> {
+      int numNodes = invocationOnMock.getArgument(3);
+      List<DatanodeDetails> targets = new ArrayList<>();
+      for (int i = 0; i < numNodes; i++) {
+        targets.add(MockDatanodeDetails.randomDatanodeDetails());
+      }
+      return targets;
+    };
+    when(ecPlacementPolicy.chooseDatanodes(anyList(), anyList(),
+            isNull(), anyInt(), anyLong(), anyLong(), any()))
+        .thenAnswer(maintenanceAnswer);
     when(ecPlacementPolicy.chooseDatanodes(anyList(), anyList(),
             isNull(), anyInt(), anyLong(), anyLong()))
-        .thenAnswer(invocationOnMock -> {
-          int numNodes = invocationOnMock.getArgument(3);
-          List<DatanodeDetails> targets = new ArrayList<>();
-          for (int i = 0; i < numNodes; i++) {
-            targets.add(MockDatanodeDetails.randomDatanodeDetails());
-          }
-          return targets;
-        });
+        .thenAnswer(maintenanceAnswer);
 
     UnderReplicatedHealthResult result =
         mock(UnderReplicatedHealthResult.class);
@@ -1059,7 +1064,7 @@ public class TestECUnderReplicationHandler {
     assertEquals(1, commandsSent.size());
     verify(ecPlacementPolicy, times(0))
         .chooseDatanodes(anyList(), isNull(), eq(0), anyLong(),
-            anyLong());
+            anyLong(), any());
   }
 
   /**
@@ -1081,19 +1086,23 @@ public class TestECUnderReplicationHandler {
     containing that DN. Ensures the test will fail if excludeNodes does not
     contain the DN pending ADD.
      */
+    Answer<List<DatanodeDetails>> pendingAddAnswer = invocationOnMock -> {
+      List<DatanodeDetails> usedList = invocationOnMock.getArgument(0);
+      List<DatanodeDetails> excludeList = invocationOnMock.getArgument(1);
+      List<DatanodeDetails> targets = new ArrayList<>(1);
+      if (usedList.contains(dn) || excludeList.contains(dn)) {
+        targets.add(MockDatanodeDetails.randomDatanodeDetails());
+      } else {
+        targets.add(dn);
+      }
+      return targets;
+    };
+    when(ecPlacementPolicy.chooseDatanodes(anyList(), anyList(),
+            isNull(), anyInt(), anyLong(), anyLong(), any()))
+        .thenAnswer(pendingAddAnswer);
     when(ecPlacementPolicy.chooseDatanodes(anyList(), anyList(),
             isNull(), anyInt(), anyLong(), anyLong()))
-        .thenAnswer(invocationOnMock -> {
-          List<DatanodeDetails> usedList = invocationOnMock.getArgument(0);
-          List<DatanodeDetails> excludeList = invocationOnMock.getArgument(1);
-          List<DatanodeDetails> targets = new ArrayList<>(1);
-          if (usedList.contains(dn) || excludeList.contains(dn)) {
-            targets.add(MockDatanodeDetails.randomDatanodeDetails());
-          } else {
-            targets.add(dn);
-          }
-          return targets;
-        });
+        .thenAnswer(pendingAddAnswer);
 
     UnderReplicatedHealthResult result =
         mock(UnderReplicatedHealthResult.class);
@@ -1214,9 +1223,9 @@ public class TestECUnderReplicationHandler {
 
     PlacementPolicySpy(PlacementPolicy placementPolicy, int totalNodes)
         throws IOException {
-      when(placementPolicy.chooseDatanodes(any(), any(),
-          any(), anyInt(), anyLong(), anyLong())
-      ).thenAnswer(invocation -> {
+      // Answer that handles chooseDatanodes calls with usedNodes at arg 0,
+      // excludedNodes at arg 1, and nodesRequired at arg 3.
+      Answer<List<DatanodeDetails>> answer = invocation -> {
         final Collection<DatanodeDetails> used = invocation.getArgument(0);
         final Collection<DatanodeDetails> excluded = invocation.getArgument(1);
         final int nodesRequired = invocation.getArgument(3);
@@ -1234,7 +1243,17 @@ public class TestECUnderReplicationHandler {
               SCMException.ResultCodes.FAILED_TO_FIND_SUITABLE_NODE);
         }
         return targets;
-      });
+      };
+      // Mock the 7-arg version (with StorageType) - called via
+      // getTargetDatanodesWithFallback for decommission/maintenance copies
+      when(placementPolicy.chooseDatanodes(any(), any(),
+          any(), anyInt(), anyLong(), anyLong(), any())
+      ).thenAnswer(answer);
+      // Mock the 6-arg version (without StorageType) - called via
+      // getTargetDatanodes for EC reconstruction
+      when(placementPolicy.chooseDatanodes(any(), any(),
+          any(), anyInt(), anyLong(), anyLong())
+      ).thenAnswer(answer);
     }
 
     int callCount() {

@@ -150,9 +150,11 @@ class TestGrpcReplicationService {
     }).when(importer).importContainer(anyLong(), any(), any(), any(), any());
     doReturn(true).when(importer).isAllowedContainerImport(eq(
         CONTAINER_ID));
-    when(importer.chooseNextVolume(anyLong())).thenReturn(new HddsVolume.Builder(
+    HddsVolume importerVolume = new HddsVolume.Builder(
         Files.createDirectory(tempDir.resolve("ImporterDir")).toString()).conf(
-        conf).build());
+        conf).build();
+    when(importer.chooseNextVolume(anyLong())).thenReturn(importerVolume);
+    when(importer.chooseNextVolume(anyLong(), any())).thenReturn(importerVolume);
 
     replicationServer =
         new ReplicationServer(containerController, replicationConfig, secConf,

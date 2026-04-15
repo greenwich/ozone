@@ -93,7 +93,7 @@ public class TestECMisReplicationHandler extends TestMisReplicationHandler {
     when(placementPolicy.validateContainerPlacement(anyList(),
         anyInt())).thenReturn(mockedContainerPlacementStatus);
     when(placementPolicy.chooseDatanodes(
-        any(), any(), any(), anyInt(), anyLong(), anyLong()))
+        any(), any(), any(), anyInt(), anyLong(), anyLong(), any()))
             .thenThrow(new IOException("No nodes found"));
     assertThrows(SCMException.class, () -> testMisReplication(
             availableReplicas, placementPolicy, Collections.emptyList(),
@@ -208,7 +208,7 @@ public class TestECMisReplicationHandler extends TestMisReplicationHandler {
     PlacementPolicy placementPolicy = mock(PlacementPolicy.class);
     List<DatanodeDetails> targetDatanodes = singletonList(
         availableReplicas.iterator().next().getDatanodeDetails());
-    when(placementPolicy.chooseDatanodes(any(), any(), any(), anyInt(), anyLong(), anyLong()))
+    when(placementPolicy.chooseDatanodes(any(), any(), any(), anyInt(), anyLong(), anyLong(), any()))
         .thenReturn(targetDatanodes);
     assertThrows(InsufficientDatanodesException.class,
         () -> testMisReplication(availableReplicas, Collections.emptyList(),

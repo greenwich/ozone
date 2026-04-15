@@ -30,6 +30,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyList;
 import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -80,9 +81,10 @@ public class TestECPipelineProvider {
         ScmConfigKeys.OZONE_SCM_CONTAINER_SIZE_DEFAULT,
         StorageUnit.BYTES);
     // Placement policy will always return EC number of random nodes.
+    // Mock the 6-arg version (with StorageType) since ECPipelineProvider
+    // calls chooseDatanodes(excluded, favored, N, 0, size, storageType).
     when(placementPolicy.chooseDatanodes(anyList(),
-        anyList(), anyInt(), anyLong(),
-        anyLong()))
+        anyList(), anyInt(), anyLong(), anyLong(), any()))
         .thenAnswer(invocation -> {
           List<DatanodeDetails> dns = new ArrayList<>();
           for (int i = 0; i < (int) invocation.getArguments()[2]; i++) {
@@ -199,8 +201,9 @@ public class TestECPipelineProvider {
     assertEquals(EC, pipeline.getType());
     assertEquals(ecConf.getData() + ecConf.getParity(), pipeline.getNodes().size());
 
-    verify(placementPolicy).chooseDatanodes(excludedNodes, favoredNodes,
-        ecConf.getRequiredNodes(), 0, containerSizeBytes);
+    verify(placementPolicy).chooseDatanodes(eq(excludedNodes),
+        eq(favoredNodes), eq(ecConf.getRequiredNodes()), eq(0L),
+        eq(containerSizeBytes), any());
   }
 
   private Set<ContainerReplica> createContainerReplicas(int number) {
