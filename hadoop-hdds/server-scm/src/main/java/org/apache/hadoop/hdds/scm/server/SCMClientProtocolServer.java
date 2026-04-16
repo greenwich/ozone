@@ -241,10 +241,17 @@ public class SCMClientProtocolServer implements
           ResultCodes.SAFE_MODE_EXCEPTION);
     }
     getScm().checkAdminAccess(getRemoteUser(), false);
+    ReplicationConfig repConfig;
+    if (replicationType == HddsProtos.ReplicationType.EC) {
+      // EC cannot be represented by type+factor; use default EC config
+      repConfig = new org.apache.hadoop.hdds.client.ECReplicationConfig(3, 2);
+    } else {
+      repConfig = ReplicationConfig.fromProtoTypeAndFactor(replicationType, factor);
+    }
+    StorageTier tier = storageTier != null
+        ? StorageTier.fromProto(storageTier) : StorageTier.getDefaultTier();
     final ContainerInfo container = scm.getContainerManager()
-        .allocateContainer(
-            ReplicationConfig.fromProtoTypeAndFactor(replicationType, factor),
-            owner, StorageTier.fromProto(storageTier));
+        .allocateContainer(repConfig, owner, tier);
     final Pipeline pipeline = scm.getPipelineManager()
         .getPipeline(container.getPipelineID());
     return new ContainerWithPipeline(container, pipeline);
