@@ -172,15 +172,15 @@ public class BlockID {
       return false;
     }
     BlockID blockID = (BlockID) o;
+    // storageType is a placement hint, not part of block identity
     return this.getContainerBlockID().equals(blockID.getContainerBlockID())
         && this.getBlockCommitSequenceId() == blockID.getBlockCommitSequenceId()
-        && Objects.equals(this.getReplicaIndex(), blockID.getReplicaIndex())
-        && Objects.equals(this.getStorageType(), blockID.getStorageType());
+        && Objects.equals(this.getReplicaIndex(), blockID.getReplicaIndex());
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(containerBlockID.getContainerID(), containerBlockID.getLocalID(),
-        blockCommitSequenceId, replicaIndex, storageType);
+        blockCommitSequenceId, replicaIndex);
   }
 }

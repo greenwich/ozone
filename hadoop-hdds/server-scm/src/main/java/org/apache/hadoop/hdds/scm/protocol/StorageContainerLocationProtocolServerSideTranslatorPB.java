@@ -42,6 +42,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hdds.annotation.InterfaceAudience;
 import org.apache.hadoop.hdds.client.ECReplicationConfig;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
+import org.apache.hadoop.hdds.client.StorageTier;
 import org.apache.hadoop.hdds.protocol.DatanodeDetails;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos;
 import org.apache.hadoop.hdds.protocol.proto.HddsProtos.TransferLeadershipRequestProto;
@@ -790,15 +791,15 @@ public final class StorageContainerLocationProtocolServerSideTranslatorPB
 
   public ContainerResponseProto allocateContainer(ContainerRequestProto request,
       int clientVersion) throws IOException {
-    ReplicationConfig replicationConfig = ReplicationConfig.fromProto(request.getReplicationType(), 
+    ReplicationConfig replicationConfig = ReplicationConfig.fromProto(
+        request.getReplicationType(),
         request.getReplicationFactor(),
         request.getEcReplicationConfig()
     );
+    StorageTier storageTier = request.hasStorageTier()
+        ? StorageTier.fromProto(request.getStorageTier()) : StorageTier.getDefaultTier();
     ContainerWithPipeline cp = impl.allocateContainer(
-        request.getReplicationType(),
-        request.getReplicationFactor(),
-        request.getOwner(),
-        request.getStorageTier());
+        replicationConfig, request.getOwner(), storageTier);
     return ContainerResponseProto.newBuilder()
         .setContainerWithPipeline(cp.getProtobuf(clientVersion))
         .setErrorCode(ContainerResponseProto.Error.success)
