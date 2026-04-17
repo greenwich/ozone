@@ -130,10 +130,15 @@ public class BlockID {
 
   @JsonIgnore
   public ContainerProtos.DatanodeBlockID.Builder getDatanodeBlockIDProtobufBuilder() {
-    return ContainerProtos.DatanodeBlockID.newBuilder().
-        setContainerID(containerBlockID.getContainerID())
-        .setLocalID(containerBlockID.getLocalID())
-        .setBlockCommitSequenceId(blockCommitSequenceId);
+    ContainerProtos.DatanodeBlockID.Builder builder =
+        ContainerProtos.DatanodeBlockID.newBuilder()
+            .setContainerID(containerBlockID.getContainerID())
+            .setLocalID(containerBlockID.getLocalID())
+            .setBlockCommitSequenceId(blockCommitSequenceId);
+    if (storageType != null) {
+      builder.setStorageTypeID(StorageTypeUtils.getID(storageType));
+    }
+    return builder;
   }
 
   @JsonIgnore

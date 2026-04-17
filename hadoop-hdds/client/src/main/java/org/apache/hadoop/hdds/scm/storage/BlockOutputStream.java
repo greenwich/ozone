@@ -210,6 +210,9 @@ public class BlockOutputStream extends OutputStream {
   ) throws IOException {
     this.xceiverClientFactory = xceiverClientManager;
     this.config = config;
+    if (storageType != null) {
+      blockID.setStorageType(storageType);
+    }
     this.blockID = new AtomicReference<>(blockID);
     this.blockSize = blockSize;
     replicationIndex = pipeline.getReplicaIndex(pipeline.getClosestNode());

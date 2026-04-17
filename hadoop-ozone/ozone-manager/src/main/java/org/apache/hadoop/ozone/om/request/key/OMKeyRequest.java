@@ -217,12 +217,27 @@ public abstract class OMKeyRequest extends OMClientRequest {
    * @throws IOException
    */
   @SuppressWarnings("parameternumber")
-  protected List< OmKeyLocationInfo > allocateBlock(ScmClient scmClient,
+  protected List<OmKeyLocationInfo> allocateBlock(ScmClient scmClient,
       OzoneBlockTokenSecretManager secretManager,
       ReplicationConfig replicationConfig, ExcludeList excludeList,
       long requestedSize, long scmBlockSize, int preallocateBlocksMax,
       boolean grpcBlockTokenEnabled, String serviceID, OMMetrics omMetrics,
       boolean shouldSortDatanodes, UserInfo userInfo)
+      throws IOException {
+    return allocateBlock(scmClient, secretManager, replicationConfig,
+        excludeList, requestedSize, scmBlockSize, preallocateBlocksMax,
+        grpcBlockTokenEnabled, serviceID, omMetrics, shouldSortDatanodes,
+        userInfo, null);
+  }
+
+  @SuppressWarnings("checkstyle:ParameterNumber")
+  protected List<OmKeyLocationInfo> allocateBlock(ScmClient scmClient,
+      OzoneBlockTokenSecretManager secretManager,
+      ReplicationConfig replicationConfig, ExcludeList excludeList,
+      long requestedSize, long scmBlockSize, int preallocateBlocksMax,
+      boolean grpcBlockTokenEnabled, String serviceID, OMMetrics omMetrics,
+      boolean shouldSortDatanodes, UserInfo userInfo,
+      StoragePolicy storagePolicy)
       throws IOException {
     int dataGroupSize = replicationConfig instanceof ECReplicationConfig
         ? ((ECReplicationConfig) replicationConfig).getData() : 1;
@@ -238,11 +253,12 @@ public abstract class OMKeyRequest extends OMClientRequest {
     String remoteUser = getRemoteUser().getShortUserName();
     List<AllocatedBlock> allocatedBlocks;
     try {
-      OzoneStoragePolicy storagePolicy = OzoneStoragePolicy.getDefaultPolicy();
+      OzoneStoragePolicy effectivePolicy = storagePolicy != null
+          ? (OzoneStoragePolicy) storagePolicy : OzoneStoragePolicy.getDefaultPolicy();
       allocatedBlocks = scmClient.getBlockClient()
           .allocateBlock(scmBlockSize, numBlocks, replicationConfig, serviceID,
               excludeList, clientMachine,
-              storagePolicy, true);
+              effectivePolicy, true);
     } catch (SCMException ex) {
       omMetrics.incNumBlockAllocateCallFails();
       if (ex.getResult()

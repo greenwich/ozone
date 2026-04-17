@@ -451,7 +451,16 @@ public final class ContainerProtocolCalls  {
       int replicationIndex, BlockData blockData, boolean close,
       StorageType storageType)
       throws IOException, ExecutionException, InterruptedException {
-    DatanodeBlockID datanodeBlockID = getDatanodeBlockID(blockID, replicationIndex, storageType);
+    // Use blockID.getDatanodeBlockIDProtobuf() which includes storageTypeID
+    // if set on the BlockID object, then override replicationIndex
+    DatanodeBlockID.Builder datanodeBlockIDBuilder = blockID.getDatanodeBlockIDProtobufBuilder();
+    if (replicationIndex > 0) {
+      datanodeBlockIDBuilder.setReplicaIndex(replicationIndex);
+    }
+    if (storageType != null) {
+      datanodeBlockIDBuilder.setStorageTypeID(StorageTypeUtils.getID(storageType));
+    }
+    DatanodeBlockID datanodeBlockID = datanodeBlockIDBuilder.build();
     WriteChunkRequestProto.Builder writeChunkRequest =
         WriteChunkRequestProto.newBuilder()
             .setBlockID(datanodeBlockID)
