@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.DatanodeVersion;
 import org.apache.hadoop.hdds.conf.ConfigurationTarget;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
@@ -63,6 +64,7 @@ public class UniformDatanodesFactory implements MiniOzoneCluster.DatanodeFactory
   private final Integer layoutVersion;
   private final DatanodeVersion initialVersion;
   private final DatanodeVersion currentVersion;
+  private final List<List<StorageType>> datanodeStorageTypes;
 
   protected UniformDatanodesFactory(Builder builder) {
     numDataVolumes = builder.numDataVolumes;
@@ -70,6 +72,7 @@ public class UniformDatanodesFactory implements MiniOzoneCluster.DatanodeFactory
     reservedSpace = builder.reservedSpace;
     currentVersion = builder.currentVersion;
     initialVersion = builder.initialVersion != null ? builder.initialVersion : builder.currentVersion;
+    datanodeStorageTypes = builder.datanodeStorageTypes;
   }
 
   @Override
@@ -87,10 +90,20 @@ public class UniformDatanodesFactory implements MiniOzoneCluster.DatanodeFactory
 
     List<String> dataDirs = new ArrayList<>();
     List<String> reservedSpaceList = new ArrayList<>();
+    // Determine per-volume storage types for this datanode (0-indexed)
+    List<StorageType> volumeTypes = null;
+    if (datanodeStorageTypes != null && (i - 1) < datanodeStorageTypes.size()) {
+      volumeTypes = datanodeStorageTypes.get(i - 1);
+    }
     for (int j = 0; j < numDataVolumes; j++) {
       Path dir = baseDir.resolve("data-" + j);
       Files.createDirectories(dir);
-      dataDirs.add(dir.toString());
+      String dirEntry = dir.toString();
+      // Prefix with [TYPE] if per-volume storage types are configured
+      if (volumeTypes != null && j < volumeTypes.size()) {
+        dirEntry = "[" + volumeTypes.get(j) + "]" + dirEntry;
+      }
+      dataDirs.add(dirEntry);
       if (reservedSpace != null) {
         reservedSpaceList.add(dir + ":" + reservedSpace);
       }
@@ -147,6 +160,7 @@ public class UniformDatanodesFactory implements MiniOzoneCluster.DatanodeFactory
     private Integer layoutVersion;
     private DatanodeVersion initialVersion;
     private DatanodeVersion currentVersion;
+    private List<List<StorageType>> datanodeStorageTypes;
 
     /**
      * Sets the number of data volumes per datanode.
@@ -181,6 +195,19 @@ public class UniformDatanodesFactory implements MiniOzoneCluster.DatanodeFactory
 
     public Builder setCurrentVersion(DatanodeVersion version) {
       this.currentVersion = version;
+      return this;
+    }
+
+    /**
+     * Sets per-datanode storage types for data volumes.
+     * Each inner list specifies the StorageType for each volume of a datanode.
+     * The outer list index corresponds to the datanode index (0-based).
+     * The inner list size should match numDataVolumes.
+     *
+     * @param storageTypes list of per-datanode volume storage types
+     */
+    public Builder setDatanodeStorageTypes(List<List<StorageType>> storageTypes) {
+      this.datanodeStorageTypes = storageTypes;
       return this;
     }
 
