@@ -291,7 +291,12 @@ public final class S3Utils {
       throws OS3Exception {
     try {
       if (StringUtils.isNotEmpty(s3StorageClass)) {
-        return S3StorageClass.fromS3StorageClass(s3StorageClass).getStoragePolicy();
+        try {
+          return S3StorageClass.fromS3StorageClass(s3StorageClass).getStoragePolicy();
+        } catch (IllegalArgumentException e) {
+          // Unknown storage class (e.g. REDUCED_REDUNDANCY) — no storage policy mapping,
+          // fall through to bucket/default resolution
+        }
       }
       if (ozoneBucket.getStoragePolicy() != null) {
         return ozoneBucket.getStoragePolicy();

@@ -5044,4 +5044,32 @@
     <value>5m</value>
     <description>Interval for cleaning up orphan snapshot local data versions corresponding to snapshots</description>
   </property>
+  <property>
+    <name>ozone.default.storagetier</name>
+    <value>DISK</value>
+    <tag>OZONE, SCM</tag>
+    <description>Default storage tier for containers and pipelines.</description>
+  </property>
+  <property>
+    <name>ozone.default.storagepolicy</name>
+    <value>WARM</value>
+    <tag>OZONE, OM</tag>
+    <description>Default storage policy for keys when not specified by the
+      bucket or key. Valid values: HOT, WARM, COLD.</description>
+  </property>
+  <property>
+    <name>ozone.s3.default.storagepolicy</name>
+    <value>STANDARD_IA</value>
+    <tag>OZONE, S3GATEWAY</tag>
+    <description>Default S3 storage class when StorageClass is not specified in
+      the S3 request and the bucket does not have a storage policy set.
+      STANDARD_IA maps to Ozone storage policy WARM.</description>
+  </property>
+  <property>
+    <name>hdds.datanode.default.storagetype</name>
+    <value>DISK</value>
+    <tag>HDDS, DATANODE</tag>
+    <description>Default storage type for datanode container creation when no
+      storage type is specified in the request.</description>
+  </property>
 </configuration>
