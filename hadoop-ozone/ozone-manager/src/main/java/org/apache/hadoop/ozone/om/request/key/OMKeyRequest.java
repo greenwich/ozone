@@ -183,7 +183,7 @@ public abstract class OMKeyRequest extends OMClientRequest {
 
   /**
    * Resolve the effective StoragePolicy for a key.
-   * Priority: keyArgs > bucket > system default.
+   * Priority: keyArgs, then bucket, then system default.
    */
   protected StoragePolicy getStoragePolicy(OmBucketInfo bucketInfo,
       KeyArgs keyArgs) {
