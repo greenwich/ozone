@@ -34,6 +34,7 @@ import org.apache.hadoop.hdds.scm.OzoneClientConfig;
 import org.apache.hadoop.hdds.scm.StreamBufferArgs;
 import org.apache.hadoop.hdds.scm.XceiverClientFactory;
 import org.apache.hadoop.hdds.scm.pipeline.Pipeline;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdds.scm.storage.BlockOutputStream;
 import org.apache.hadoop.hdds.scm.storage.BufferPool;
 import org.apache.hadoop.hdds.scm.storage.RatisBlockOutputStream;
@@ -70,6 +71,7 @@ public class BlockOutputStreamEntry extends OutputStream {
   private final ContainerClientMetrics clientMetrics;
   private final StreamBufferArgs streamBufferArgs;
   private final Supplier<ExecutorService> executorServiceSupplier;
+  private final StorageType storageType;
 
   /**
    * An indicator that this BlockOutputStream is created to handoff writes from another faulty BlockOutputStream.
@@ -96,6 +98,7 @@ public class BlockOutputStreamEntry extends OutputStream {
     this.clientMetrics = b.clientMetrics;
     this.streamBufferArgs = b.streamBufferArgs;
     this.executorServiceSupplier = b.executorServiceSupplier;
+    this.storageType = b.storageType;
     this.isHandlingRetry = b.forRetry;
   }
 
@@ -155,7 +158,7 @@ public class BlockOutputStreamEntry extends OutputStream {
   void createOutputStream() throws IOException {
     outputStream = new RatisBlockOutputStream(blockID, length, xceiverClientManager,
         pipeline, bufferPool, config, token, clientMetrics, streamBufferArgs,
-        executorServiceSupplier);
+        executorServiceSupplier, storageType);
   }
 
   ContainerClientMetrics getClientMetrics() {
@@ -415,6 +418,7 @@ public class BlockOutputStreamEntry extends OutputStream {
     private StreamBufferArgs streamBufferArgs;
     private Supplier<ExecutorService> executorServiceSupplier;
     private boolean forRetry;
+    private StorageType storageType;
 
     public Pipeline getPipeline() {
       return pipeline;
@@ -482,6 +486,11 @@ public class BlockOutputStreamEntry extends OutputStream {
 
     public Builder setForRetry(boolean forRetry) {
       this.forRetry = forRetry;
+      return this;
+    }
+
+    public Builder setStorageType(StorageType type) {
+      this.storageType = type;
       return this;
     }
 

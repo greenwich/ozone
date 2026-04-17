@@ -171,6 +171,7 @@ public class BlockOutputStreamEntryPool implements KeyMetadataAware {
             .setStreamBufferArgs(streamBufferArgs)
             .setExecutorServiceSupplier(executorServiceSupplier)
             .setForRetry(forRetry)
+            .setStorageType(getStorageType(subKeyInfo))
             .build();
   }
 

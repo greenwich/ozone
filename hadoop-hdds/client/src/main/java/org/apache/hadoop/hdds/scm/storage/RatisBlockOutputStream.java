@@ -19,6 +19,7 @@ package org.apache.hadoop.hdds.scm.storage;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import org.apache.hadoop.fs.StorageType;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
@@ -80,8 +81,27 @@ public class RatisBlockOutputStream extends BlockOutputStream
       ContainerClientMetrics clientMetrics, StreamBufferArgs streamBufferArgs,
       Supplier<ExecutorService> blockOutputStreamResourceProvider
   ) throws IOException {
+    this(blockID, blockSize, xceiverClientManager, pipeline,
+        bufferPool, config, token, clientMetrics, streamBufferArgs,
+        blockOutputStreamResourceProvider, null);
+  }
+
+  @SuppressWarnings("checkstyle:ParameterNumber")
+  public RatisBlockOutputStream(
+      BlockID blockID,
+      long blockSize,
+      XceiverClientFactory xceiverClientManager,
+      Pipeline pipeline,
+      BufferPool bufferPool,
+      OzoneClientConfig config,
+      Token<? extends TokenIdentifier> token,
+      ContainerClientMetrics clientMetrics, StreamBufferArgs streamBufferArgs,
+      Supplier<ExecutorService> blockOutputStreamResourceProvider,
+      StorageType storageType
+  ) throws IOException {
     super(blockID, blockSize, xceiverClientManager, pipeline,
-        bufferPool, config, token, clientMetrics, streamBufferArgs, blockOutputStreamResourceProvider);
+        bufferPool, config, token, clientMetrics, streamBufferArgs,
+        blockOutputStreamResourceProvider, storageType);
     this.commitWatcher = new CommitWatcher(bufferPool, getXceiverClient());
   }
 
