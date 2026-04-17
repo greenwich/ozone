@@ -191,7 +191,7 @@ public class ContainerManagerImpl implements ContainerManager {
     ContainerInfo containerInfo = null;
     try {
       pipelines = pipelineManager
-          .getPipelines(replicationConfig, Pipeline.PipelineState.OPEN);
+          .getPipelines(replicationConfig, Pipeline.PipelineState.OPEN, storageTier);
       if (!pipelines.isEmpty()) {
         pipeline = pipelines.get(random.nextInt(pipelines.size()));
         containerInfo = createContainer(pipeline, owner, storageTier);
@@ -203,7 +203,7 @@ public class ContainerManagerImpl implements ContainerManager {
 
     if (pipelines.isEmpty()) {
       try {
-        pipeline = pipelineManager.createPipeline(replicationConfig, StorageTier.getDefaultTier());
+        pipeline = pipelineManager.createPipeline(replicationConfig, storageTier);
         if (replicationConfig.getReplicationType() == HddsProtos.ReplicationType.EC) {
           pipelineManager.openPipeline(pipeline.getId());
         }
@@ -218,7 +218,7 @@ public class ContainerManagerImpl implements ContainerManager {
       lock.lock();
       try {
         pipelines = pipelineManager
-            .getPipelines(replicationConfig, Pipeline.PipelineState.OPEN);
+            .getPipelines(replicationConfig, Pipeline.PipelineState.OPEN, storageTier);
         if (!pipelines.isEmpty()) {
           pipeline = pipelines.get(random.nextInt(pipelines.size()));
           containerInfo = createContainer(pipeline, owner, storageTier);
