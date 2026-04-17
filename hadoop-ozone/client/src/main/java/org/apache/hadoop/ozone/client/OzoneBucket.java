@@ -566,7 +566,7 @@ public class OzoneBucket extends WithMetadata {
    * @param replicationConfig Replication configuration.
    * @param keyMetadata       Custom key metadata.
    * @param tags              Tags used for S3 object tags
-   * @param storagePolicy     The StoragePolicy of the key.
+   * @param policy     The StoragePolicy of the key.
    * @return OzoneOutputStream to which the data has to be written.
    * @throws IOException
    */
@@ -610,7 +610,7 @@ public class OzoneBucket extends WithMetadata {
    * @param existingKeyGeneration The generation of the existing key
    * @param replicationConfig The replication configuration for the key
    * @param metadata custom key value metadata
-   * @param storagePolicy The storagePolicy of the Key
+   * @param policy The storagePolicy of the Key
    * @return OzoneOutputStream to which the data has to be written.
    * @throws IOException
    */
@@ -679,7 +679,7 @@ public class OzoneBucket extends WithMetadata {
    *
    * @param key  Name of the key to be created.
    * @param size Size of the data the key will point to.
-   * @param storagePolicy     StoragePolicy of the key.
+   * @param policy     StoragePolicy of the key.
    * @return OzoneDataStreamOutput to which the data has to be written.
    * @throws IOException
    */
@@ -696,7 +696,7 @@ public class OzoneBucket extends WithMetadata {
    * @param size              Size of the data the key will point to.
    * @param replicationConfig Replication configuration.
    * @param keyMetadata       Custom key metadata.
-   * @param storagePolicy     StoragePolicy of the key.
+   * @param policy     StoragePolicy of the key.
    * @return OzoneDataStreamOutput to which the data has to be written.
    * @throws IOException
    */
@@ -1034,7 +1034,7 @@ public class OzoneBucket extends WithMetadata {
    * @param config Replication config.
    * @param metadata Custom key metadata.
    * @param tags Tags used for S3 object tags.
-   * @param storagePolicy The StoragePolicy of the key
+   * @param policy The StoragePolicy of the key
    * @return OmMultipartInfo
    * @throws IOException
    */
