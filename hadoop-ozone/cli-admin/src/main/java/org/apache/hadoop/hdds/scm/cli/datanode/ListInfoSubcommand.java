@@ -207,7 +207,7 @@ public class ListInfoSubcommand extends ScmSubcommand {
                 .append('/').append(p.getPipelineState().toString()).append('/')
                 .append(datanode.getID().equals(p.getLeaderId()) ?
                     "Leader" : "Follower")
-                .append("/").append(p.getSupportedStorageTier().stream()
+                .append('/').append(p.getSupportedStorageTier().stream()
                     .map(StorageTier::toString)
                     .collect(Collectors.joining(", ", "[", "]")))
                 .append(System.getProperty("line.separator")));

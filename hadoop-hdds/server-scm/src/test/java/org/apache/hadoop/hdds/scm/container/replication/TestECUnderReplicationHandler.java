@@ -54,7 +54,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.ImmutableList;
 import java.io.File;
@@ -104,6 +103,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.stubbing.Answer;
 
 /**
  * Tests the ECUnderReplicationHandling functionality.

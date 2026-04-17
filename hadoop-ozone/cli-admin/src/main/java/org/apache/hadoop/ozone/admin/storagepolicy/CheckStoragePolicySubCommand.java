@@ -84,23 +84,20 @@ public class CheckStoragePolicySubCommand extends ScmSubcommand {
   }
 
   private String buildKeyStoragePolicyInfo(OzoneKeyDetails keyInfo) {
-    StringBuilder sb = new StringBuilder();
     StoragePolicy storagePolicy = keyInfo.getStoragePolicy();
     int requiredNodes = keyInfo.getReplicationConfig().getRequiredNodes();
-    sb.append(String.format("Storage Policy for key '%s/%s/%s':%n",
+    String header = String.format("Storage Policy for key '%s/%s/%s':%n",
         keyAddress.getVolumeName(), keyAddress.getBucketName(),
-        keyAddress.getKeyName()));
+        keyAddress.getKeyName());
 
     if (storagePolicy == null) {
-      sb.append("  Key has no StoragePolicy set\n");
-    } else {
-      sb.append(String.format("  %s (Creation Tier: %s x %d)%n",
-          storagePolicy, storagePolicy.getCreationTier(),
-          requiredNodes));
-      sb.append(String.format("  Key Match Storage Policy: %s%n",
-          keyMatchStoragePolicy ? "YES" : "NO"));
+      return header + "  Key has no StoragePolicy set\n";
     }
-    return sb.toString();
+    return header
+        + String.format("  %s (Creation Tier: %s x %d)%n",
+            storagePolicy, storagePolicy.getCreationTier(), requiredNodes)
+        + String.format("  Key Match Storage Policy: %s%n",
+            keyMatchStoragePolicy ? "YES" : "NO");
   }
 
   private String buildContainerReplicaInfo(OzoneKeyDetails keyDetails,
@@ -126,16 +123,16 @@ public class CheckStoragePolicySubCommand extends ScmSubcommand {
             keyMatchStoragePolicy = false;
           }
           DatanodeDetails datanode = replica.getDatanodeDetails();
-          sb.append(String.format(
-              "  Datanode: %s (%s, %s)%n",
+          String replicaInfo = String.format(
+              "  Datanode: %s (%s, %s)%n"
+                  + "  Replica Storage Type: %s%n"
+                  + "  Container Path: [%s]%s%n%n",
               datanode.getUuid(), datanode.getHostName(),
-              datanode.getNetworkLocation()));
-          sb.append(String.format("  Replica Storage Type: %s%n",
-              replica.getStorageType()));
-          sb.append(String.format("  Container Path: [%s]%s%n",
+              datanode.getNetworkLocation(),
+              replica.getStorageType(),
               replica.getVolumeStorageType(),
-              replica.getContainerPath()));
-          sb.append("\n");
+              replica.getContainerPath());
+          sb.append(replicaInfo);
         }
       } catch (IOException e) {
         throw new RuntimeException(String.format(

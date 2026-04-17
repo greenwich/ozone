@@ -198,13 +198,15 @@ public class InfoSubcommand extends ScmSubcommand {
     sb.append(" SequenceId: ").append(replica.getSequenceId()).append(';')
         .append(" Origin: ").append(replica.getPlaceOfBirth().toString()).append(';')
         .append(" Location: ").append(buildDatanodeDetails(replica.getDatanodeDetails()));
+    String suffix = "";
     if (replica.getContainerPath() != null) {
-      sb.append(" ContainerPath: ").append(replica.getContainerPath()).append(';');
+      suffix += " ContainerPath: " + replica.getContainerPath() + ";";
     }
     if (withStorageType) {
-      sb.append(" ContainerStorageType: ").append(replica.getStorageType()).append(';');
-      sb.append(" VolumeStorageType: ").append(replica.getVolumeStorageType()).append(';');
+      suffix += " ContainerStorageType: " + replica.getStorageType()
+          + "; VolumeStorageType: " + replica.getVolumeStorageType() + ";";
     }
+    sb.append(suffix);
     return sb.toString();
   }
 
