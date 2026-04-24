@@ -185,12 +185,19 @@ public final class ContainerDataYaml {
     if (containerType == ContainerType.KeyValueContainer) {
       List<String> yamlFields =
           KeyValueContainerData.getYamlFields();
-      if (withReplicaIndex || storageType != null) {
+      // The default DISK tier is intentionally omitted from the YAML so that
+      // the .container file content (and therefore its checksum) matches what
+      // a pre-tiering DN binary would produce. Non-default tiers (SSD,
+      // ARCHIVE, ...) persist as-is; downgrading a multi-tier cluster to a
+      // pre-tiering version is not supported.
+      boolean persistStorageType =
+          storageType != null && storageType != StorageType.DISK;
+      if (withReplicaIndex || persistStorageType) {
         yamlFields = new ArrayList<>(yamlFields);
         if (withReplicaIndex) {
           yamlFields.add(REPLICA_INDEX);
         }
-        if (storageType != null) {
+        if (persistStorageType) {
           yamlFields.add(CONTAINER_STORAGE_TYPE);
         }
       }
