@@ -23,7 +23,6 @@ import static org.apache.hadoop.ozone.s3.S3GatewayConfigKeys.OZONE_S3G_LIST_KEYS
 import static org.apache.hadoop.ozone.s3.S3GatewayConfigKeys.OZONE_S3G_LIST_KEYS_SHALLOW_ENABLED_DEFAULT;
 import static org.apache.hadoop.ozone.s3.S3GatewayConfigKeys.OZONE_S3G_LIST_MAX_KEYS_LIMIT;
 import static org.apache.hadoop.ozone.s3.S3GatewayConfigKeys.OZONE_S3G_LIST_MAX_KEYS_LIMIT_DEFAULT;
-import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.INTERNAL_ERROR;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.newError;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.ENCODING_TYPE;
 import static org.apache.hadoop.ozone.s3.util.S3Utils.wrapInQuotes;
@@ -100,7 +99,7 @@ public class BucketEndpoint extends BucketOperationHandler {
     try {
       return handler.handleGetRequest(context, bucketName);
     } catch (OMException ex) {
-      throw newError(translateException(ex), bucketName, ex);
+      throw newError(bucketName, ex);
     }
   }
 
@@ -271,7 +270,7 @@ public class BucketEndpoint extends BucketOperationHandler {
     try {
       return handler.handlePutRequest(context, bucketName, body);
     } catch (OMException ex) {
-      throw newError(translateException(ex), bucketName, ex);
+      throw newError(bucketName, ex);
     }
   }
 
@@ -299,7 +298,7 @@ public class BucketEndpoint extends BucketOperationHandler {
       return Response.ok().build();
     } catch (OMException e) {
       auditReadFailure(s3GAction, e);
-      throw newError(translateException(e), bucketName, e);
+      throw newError(bucketName, e);
     } catch (Exception e) {
       auditReadFailure(s3GAction, e);
       throw e;
@@ -319,7 +318,7 @@ public class BucketEndpoint extends BucketOperationHandler {
     try {
       return handler.handleDeleteRequest(context, bucketName);
     } catch (OMException ex) {
-      throw newError(translateException(ex), bucketName, ex);
+      throw newError(bucketName, ex);
     }
   }
 
@@ -432,25 +431,5 @@ public class BucketEndpoint extends BucketOperationHandler {
         .add(this)
         .build();
     handler = new AuditingBucketOperationHandler(chain);
-  }
-
-  private static S3ErrorTable translateException(OMException ex) {
-    switch (ex.getResult()) {
-    case ACCESS_DENIED:
-    case INVALID_TOKEN:
-    case PERMISSION_DENIED:
-      return S3ErrorTable.ACCESS_DENIED;
-    case BUCKET_ALREADY_EXISTS:
-      return S3ErrorTable.BUCKET_ALREADY_EXISTS;
-    case BUCKET_NOT_EMPTY:
-      return S3ErrorTable.BUCKET_NOT_EMPTY;
-    case BUCKET_NOT_FOUND:
-    case VOLUME_NOT_FOUND:
-      return S3ErrorTable.NO_SUCH_BUCKET;
-    case INVALID_BUCKET_NAME:
-      return S3ErrorTable.INVALID_BUCKET_NAME;
-    default:
-      return INTERNAL_ERROR;
-    }
   }
 }

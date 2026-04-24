@@ -156,6 +156,8 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.SetSafe
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.SnapshotDiffRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.SnapshotDiffResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.Status;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.SubmitSnapshotDiffRequest;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.SubmitSnapshotDiffResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.TenantGetUserInfoRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.TenantGetUserInfoResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.TenantListUserRequest;
@@ -348,6 +350,11 @@ public class OzoneManagerRequestHandler implements RequestHandler {
         ListSnapshotDiffJobResponse listSnapDiffResponse =
             listSnapshotDiffJobs(request.getListSnapshotDiffJobRequest());
         responseBuilder.setListSnapshotDiffJobResponse(listSnapDiffResponse);
+        break;
+      case SubmitSnapshotDiff:
+        SubmitSnapshotDiffResponse submitSnapshotDiff = submitSnapshotDiff(
+            request.getSubmitSnapshotDiffRequest());
+        responseBuilder.setSubmitSnapshotDiffResponse(submitSnapshotDiff);
         break;
       case EchoRPC:
         EchoRPCResponse echoRPCResponse =
@@ -1392,16 +1399,28 @@ public class OzoneManagerRequestHandler implements RequestHandler {
   @DisallowedUntilLayoutVersion(FILESYSTEM_SNAPSHOT)
   private SnapshotDiffResponse snapshotDiff(
       SnapshotDiffRequest snapshotDiffRequest) throws IOException {
-    org.apache.hadoop.ozone.snapshot.SnapshotDiffResponse response =
-        impl.snapshotDiff(
-            snapshotDiffRequest.getVolumeName(),
-            snapshotDiffRequest.getBucketName(),
-            snapshotDiffRequest.getFromSnapshot(),
-            snapshotDiffRequest.getToSnapshot(),
-            snapshotDiffRequest.getToken(),
-            snapshotDiffRequest.getPageSize(),
-            snapshotDiffRequest.getForceFullDiff(),
-            snapshotDiffRequest.getDisableNativeDiff());
+    org.apache.hadoop.ozone.snapshot.SnapshotDiffResponse response;
+
+    if (snapshotDiffRequest.hasForceFullDiff() && snapshotDiffRequest.hasDisableNativeDiff()) {
+      response = impl.snapshotDiff(
+          snapshotDiffRequest.getVolumeName(),
+          snapshotDiffRequest.getBucketName(),
+          snapshotDiffRequest.getFromSnapshot(),
+          snapshotDiffRequest.getToSnapshot(),
+          snapshotDiffRequest.getToken(),
+          snapshotDiffRequest.getPageSize(),
+          snapshotDiffRequest.getForceFullDiff(),
+          snapshotDiffRequest.getDisableNativeDiff());
+    } else {
+      response = impl.snapshotDiff(
+          snapshotDiffRequest.getVolumeName(),
+          snapshotDiffRequest.getBucketName(),
+          snapshotDiffRequest.getFromSnapshot(),
+          snapshotDiffRequest.getToSnapshot(),
+          snapshotDiffRequest.getToken(),
+          snapshotDiffRequest.getPageSize());
+    }
+
 
     SnapshotDiffResponse.Builder builder = SnapshotDiffResponse.newBuilder()
         .setJobStatus(response.getJobStatus().toProtobuf())
@@ -1413,6 +1432,29 @@ public class OzoneManagerRequestHandler implements RequestHandler {
     if (response.getSnapshotDiffReport() != null) {
       builder.setSnapshotDiffReport(
           response.getSnapshotDiffReport().toProtobuf());
+    }
+
+    return builder.build();
+  }
+
+  @DisallowedUntilLayoutVersion(FILESYSTEM_SNAPSHOT)
+  private SubmitSnapshotDiffResponse submitSnapshotDiff(
+      SubmitSnapshotDiffRequest submitSnapshotDiffRequest) throws IOException {
+
+    org.apache.hadoop.ozone.snapshot.SubmitSnapshotDiffResponse response =
+        impl.submitSnapshotDiff(
+            submitSnapshotDiffRequest.getVolumeName(),
+            submitSnapshotDiffRequest.getBucketName(),
+            submitSnapshotDiffRequest.getFromSnapshot(),
+            submitSnapshotDiffRequest.getToSnapshot(),
+            submitSnapshotDiffRequest.getForceFullDiff(),
+            submitSnapshotDiffRequest.getDisableNativeDiff());
+
+    SubmitSnapshotDiffResponse.Builder builder = SubmitSnapshotDiffResponse
+        .newBuilder();
+
+    if (StringUtils.isNotEmpty(response.getResponse())) {
+      builder.setResponse(response.getResponse());
     }
 
     return builder.build();

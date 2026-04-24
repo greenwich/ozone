@@ -16,6 +16,6 @@
  */
 
 /**
- * Iceberg integration for Ozone.
+ * Apache Ozone integration with Apache Iceberg.
  */
 package org.apache.hadoop.ozone.iceberg;

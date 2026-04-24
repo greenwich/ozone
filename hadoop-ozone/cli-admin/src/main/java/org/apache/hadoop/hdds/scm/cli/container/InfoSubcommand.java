@@ -171,7 +171,7 @@ public class InfoSubcommand extends ScmSubcommand {
       // Print pipeline of an existing container.
       String machinesStr = container.getPipeline().getNodes().stream().map(
               InfoSubcommand::buildDatanodeDetails)
-          .collect(Collectors.joining(",\n"));
+          .collect(Collectors.joining("," + System.lineSeparator()));
       System.out.printf("Datanodes: [%s]%n", machinesStr);
 
       // Print the replica details if available
@@ -179,7 +179,7 @@ public class InfoSubcommand extends ScmSubcommand {
         String replicaStr = replicas.stream()
             .sorted(Comparator.comparing(ContainerReplicaInfo::getReplicaIndex))
             .map(InfoSubcommand::buildReplicaDetails)
-            .collect(Collectors.joining(",\n"));
+            .collect(Collectors.joining("," + System.lineSeparator()));
         System.out.printf("Replicas: [%s]%n", replicaStr);
       }
     }
